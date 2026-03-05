@@ -13,6 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, User, Clock, AlertTriangle } from 'lucide-react';
 
+const getMonthBounds = (monthRef: string) => {
+  const [year, month] = monthRef.split('-').map(Number);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+
+  return {
+    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
+    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
+  };
+};
+
 const CalendarPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -44,14 +55,21 @@ const CalendarPage = () => {
     queryKey: ['used-credits', user?.id, monthRef],
     queryFn: async () => {
       if (!user) return 0;
-      const { count } = await supabase
+
+      const { start, end } = getMonthBounds(monthRef);
+      const { count, error } = await supabase
         .from('bookings')
-        .select('id', { count: 'exact', head: true })
+        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
         .eq('student_id', user.id)
-        .eq('status', 'booked');
+        .eq('status', 'booked')
+        .gte('availability_slots.start_time', start)
+        .lt('availability_slots.start_time', end);
+
+      if (error) throw error;
+
       return count || 0;
     },
-    enabled: !!user,
+    enabled: !!user && !!monthRef,
   });
 
   // Slots

@@ -15,7 +15,7 @@ const StudentLayout = () => {
   const { profile } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-20">
       {/* Top header - mobile */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur-lg">
         <Logo size="sm" />

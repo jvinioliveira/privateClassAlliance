@@ -18,6 +18,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  if (!requireAdmin && profile?.role === 'admin') return <Navigate to="/admin" replace />;
   if (requireAdmin && profile?.role !== 'admin') return <Navigate to="/calendar" replace />;
 
   return <>{children}</>;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ const ResetPasswordPage = () => {
   const [emailSent, setEmailSent] = useState(false);
   const { resetPassword, updatePassword } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Check if this is the recovery callback (user clicked email link)
   const hashParams = new URLSearchParams(location.hash.replace('#', ''));
@@ -43,7 +44,7 @@ const ResetPasswordPage = () => {
     try {
       await updatePassword(newPassword);
       toast.success('Senha atualizada com sucesso!');
-      window.location.href = '/calendar';
+      navigate('/', { replace: true });
     } catch (err: any) {
       toast.error(err.message || 'Erro ao atualizar senha');
     } finally {

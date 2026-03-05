@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,10 @@ const ProfilePage = () => {
   const { profile, signOut, user } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setFullName(profile?.full_name || '');
+  }, [profile?.full_name, profile?.id]);
 
   const handleSave = async () => {
     if (!user) return;

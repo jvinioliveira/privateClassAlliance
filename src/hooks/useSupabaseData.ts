@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -59,6 +59,17 @@ export interface Notification {
   read: boolean;
   created_at: string;
 }
+
+const getMonthBounds = (monthRef: string) => {
+  const [year, month] = monthRef.split('-').map(Number);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+
+  return {
+    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
+    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
+  };
+};
 
 // Fetch slots for a date range
 export const useSlots = (startDate: string, endDate: string) => {
@@ -147,19 +158,15 @@ export const useUsedCredits = (monthRef: string) => {
     queryKey: ['used-credits', user?.id, monthRef],
     queryFn: async () => {
       if (!user) return 0;
-      // Get start and end of month in São Paulo timezone
-      const start = `${monthRef}T00:00:00-03:00`;
-      const nextMonth = new Date(monthRef);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      const end = `${nextMonth.toISOString().slice(0, 10)}T00:00:00-03:00`;
+      const { start, end } = getMonthBounds(monthRef);
 
       const { count, error } = await supabase
         .from('bookings')
-        .select('id', { count: 'exact', head: true })
+        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
         .eq('student_id', user.id)
         .eq('status', 'booked')
-        .gte('created_at', start)
-        .lt('created_at', end);
+        .gte('availability_slots.start_time', start)
+        .lt('availability_slots.start_time', end);
       if (error) throw error;
       return count || 0;
     },
@@ -260,3 +267,4 @@ export const getMonthReport = async (monthRef: string) => {
   if (error) throw error;
   return data;
 };
+
