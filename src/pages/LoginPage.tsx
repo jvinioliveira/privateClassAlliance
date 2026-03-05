@@ -19,7 +19,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await signIn(email, password);
-      navigate('/calendar');
+      navigate('/', { replace: true });
     } catch (err: any) {
       toast.error(err.message || 'Erro ao entrar');
     } finally {

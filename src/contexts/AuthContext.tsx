@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 type UserRole = 'student' | 'admin';
@@ -38,36 +38,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, role')
       .eq('id', userId)
-      .single();
-    if (data) setProfile(data as Profile);
+      .maybeSingle();
+
+    if (error) throw error;
+
+    setProfile((data as Profile | null) ?? null);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 0);
-      } else {
-        setProfile(null);
+    let mounted = true;
+
+    const syncAuthState = async (event: AuthChangeEvent, nextSession: Session | null) => {
+      if (!mounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      // Token refresh keeps the same user/profile, so avoid unnecessary loading flicker.
+      if (event === 'TOKEN_REFRESHED') return;
+
+      setLoading(true);
+      setProfile(null);
+
+      try {
+        if (nextSession?.user) {
+          await fetchProfile(nextSession.user.id);
+        }
+      } catch (error) {
+        console.error('Failed to load profile', error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      void syncAuthState(event, nextSession);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
+    void supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      void syncAuthState('INITIAL_SESSION', currentSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
