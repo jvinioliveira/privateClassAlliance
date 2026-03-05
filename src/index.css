@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 7%;
+    --foreground: 40 20% 92%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 40 20% 92%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 40 20% 92%;
+
+    --primary: 43 72% 52%;
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 40 20% 85%;
+
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 65% 42%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 43 72% 52%;
+
+    --radius: 0.75rem;
+
+    --gold: 43 72% 52%;
+    --gold-light: 43 80% 65%;
+    --gold-dark: 43 60% 38%;
+    --crimson: 0 65% 42%;
+    --crimson-light: 0 60% 55%;
+    --surface: 0 0% 12%;
+    --surface-hover: 0 0% 16%;
+
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 40 20% 85%;
+    --sidebar-primary: 43 72% 52%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 40 20% 92%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 43 72% 52%;
+
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Oswald', sans-serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+/* FullCalendar overrides */
+.fc {
+  --fc-border-color: hsl(0 0% 18%);
+  --fc-button-bg-color: hsl(0 0% 15%);
+  --fc-button-border-color: hsl(0 0% 20%);
+  --fc-button-hover-bg-color: hsl(0 0% 20%);
+  --fc-button-hover-border-color: hsl(43 72% 52%);
+  --fc-button-active-bg-color: hsl(43 72% 52%);
+  --fc-button-active-border-color: hsl(43 72% 52%);
+  --fc-event-bg-color: hsl(43 72% 52%);
+  --fc-event-border-color: hsl(43 60% 38%);
+  --fc-event-text-color: hsl(0 0% 5%);
+  --fc-today-bg-color: hsl(43 72% 52% / 0.08);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: hsl(0 0% 10%);
+  --fc-list-event-hover-bg-color: hsl(0 0% 14%);
+  --fc-now-indicator-color: hsl(0 65% 42%);
+}
+
+.fc .fc-toolbar-title {
+  font-family: 'Oswald', sans-serif !important;
+  @apply text-lg sm:text-xl font-semibold uppercase tracking-wider;
+  color: hsl(40 20% 92%);
+}
+
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: hsl(40 20% 85%);
+  @apply text-xs sm:text-sm;
+}
+
+.fc .fc-button {
+  @apply text-xs sm:text-sm px-2 sm:px-3 py-1 rounded-md font-medium;
+  text-transform: uppercase;
+  font-family: 'Oswald', sans-serif;
+}
+
+.fc .fc-button-active {
+  color: hsl(0 0% 5%) !important;
+}
+
+.fc .fc-daygrid-event {
+  @apply rounded-md text-xs px-1 py-0.5 cursor-pointer;
+}
+
+.fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.fc .fc-scrollgrid {
+  border: none !important;
+}
+
+.fc td, .fc th {
+  border-color: hsl(0 0% 18%) !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(0 0% 8%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 25%);
+  border-radius: 3px;
+}
+
+/* Bottom nav safe area */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+/* Gold gradient text */
+.text-gold-gradient {
+  background: linear-gradient(135deg, hsl(43 80% 65%), hsl(43 72% 52%), hsl(43 60% 38%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Slot status badges */
+.slot-available {
+  background: hsl(43 72% 52% / 0.15);
+  border-left: 3px solid hsl(43 72% 52%);
+}
+
+.slot-full {
+  background: hsl(0 65% 42% / 0.15);
+  border-left: 3px solid hsl(0 65% 42%);
+}
+
+.slot-blocked {
+  background: hsl(0 0% 20% / 0.5);
+  border-left: 3px solid hsl(0 0% 30%);
+}
