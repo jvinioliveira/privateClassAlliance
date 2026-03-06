@@ -73,15 +73,15 @@ const AdminStudentsPage = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-xl uppercase tracking-wider">Alunos & Créditos</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <Label className="text-xs text-muted-foreground">Mês:</Label>
           <Input
             type="month"
             value={monthInput}
             onChange={(e) => setMonthInput(e.target.value)}
-            className="w-40 bg-card text-sm"
+            className="w-full bg-card text-sm sm:w-40"
           />
         </div>
       </div>
@@ -95,11 +95,11 @@ const AdminStudentsPage = () => {
           {students.map((s: any) => {
             const credit = getCreditsForStudent(s.id);
             return (
-              <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 animate-fade-in">
-                <div className="flex items-center gap-3">
+              <div key={s.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 animate-fade-in sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
                   <Users className="h-4 w-4 text-primary" />
                   <div>
-                    <p className="text-sm font-medium">{s.full_name || 'Sem nome'}</p>
+                    <p className="text-sm font-medium break-words">{s.full_name || 'Sem nome'}</p>
                     <p className="text-xs text-muted-foreground">
                       Limite: {credit?.monthly_limit || 0} aulas/mês
                     </p>
@@ -108,6 +108,7 @@ const AdminStudentsPage = () => {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="self-end sm:self-auto"
                   onClick={() => {
                     setSelectedStudent(s);
                     setLimitInput(credit?.monthly_limit || 0);

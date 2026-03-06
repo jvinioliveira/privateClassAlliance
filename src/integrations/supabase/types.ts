@@ -112,6 +112,42 @@ export type Database = {
           },
         ]
       }
+      lesson_plans: {
+        Row: {
+          created_at: string
+          credits: number
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price_cents: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_cents: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_cents?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -152,21 +188,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           full_name: string | null
           id: string
+          phone: string | null
           role: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id: string
+          phone?: string | null
           role?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          phone?: string | null
           role?: string
         }
         Relationships: []
@@ -199,6 +241,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "student_month_credits_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_plan_selections: {
+        Row: {
+          credits: number
+          id: string
+          month_ref: string
+          plan_id: string
+          price_cents: number
+          selected_at: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          credits: number
+          id?: string
+          month_ref: string
+          plan_id: string
+          price_cents: number
+          selected_at?: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          credits?: number
+          id?: string
+          month_ref?: string
+          plan_id?: string
+          price_cents?: number
+          selected_at?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_plan_selections_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_plan_selections_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -273,6 +366,10 @@ export type Database = {
       }
       book_slot: {
         Args: { p_seats_reserved: number; p_slot_id: string }
+        Returns: string
+      }
+      choose_plan: {
+        Args: { p_month_ref?: string; p_plan_id: string }
         Returns: string
       }
       cancel_booking: { Args: { p_booking_id: string }; Returns: undefined }

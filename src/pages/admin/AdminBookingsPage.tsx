@@ -71,20 +71,22 @@ const AdminBookingsPage = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-xl uppercase tracking-wider">Agendamentos</h1>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 bg-card">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="booked">Agendados</SelectItem>
-            <SelectItem value="completed">Conclu\u00eddos</SelectItem>
-            <SelectItem value="cancelled">Cancelados</SelectItem>
-            <SelectItem value="no_show">Faltas</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="w-full sm:w-auto">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full bg-card sm:w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="booked">Agendados</SelectItem>
+              <SelectItem value="completed">Conclu\u00eddos</SelectItem>
+              <SelectItem value="cancelled">Cancelados</SelectItem>
+              <SelectItem value="no_show">Faltas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
@@ -95,11 +97,11 @@ const AdminBookingsPage = () => {
         <div className="space-y-2">
           {bookings.map((b: any) => (
             <div key={b.id} className="rounded-xl border border-border bg-card p-4 animate-fade-in">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     {b.seats_reserved === 2 ? <Users className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-primary" />}
-                    <span className="text-sm font-medium">{b.student?.full_name || 'Aluno'}</span>
+                    <span className="text-sm font-medium break-words">{b.student?.full_name || 'Aluno'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" />
@@ -112,7 +114,7 @@ const AdminBookingsPage = () => {
                         hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
                       })}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Badge variant={statusColors[b.status] as any}>{statusLabels[b.status] || b.status}</Badge>
                     <Badge variant="secondary">{b.seats_reserved === 2 ? 'Dupla' : 'Individual'}</Badge>
                     {b.created_by_admin && <Badge variant="outline">Lote</Badge>}
@@ -120,11 +122,11 @@ const AdminBookingsPage = () => {
                 </div>
 
                 {b.status === 'booked' && (
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap gap-1 sm:flex-col">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-green-500 hover:text-green-400 h-7 text-xs"
+                      className="h-7 text-xs text-green-500 hover:text-green-400"
                       onClick={() => checkInMut.mutate({ id: b.id, status: 'present' })}
                     >
                       <CheckCircle className="mr-1 h-3 w-3" /> Presente
@@ -132,7 +134,7 @@ const AdminBookingsPage = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-destructive h-7 text-xs"
+                      className="h-7 text-xs text-destructive"
                       onClick={() => checkInMut.mutate({ id: b.id, status: 'absent' })}
                     >
                       <XCircle className="mr-1 h-3 w-3" /> Falta
@@ -140,7 +142,7 @@ const AdminBookingsPage = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-muted-foreground h-7 text-xs"
+                      className="h-7 text-xs text-muted-foreground"
                       onClick={() => cancelMut.mutate(b.id)}
                     >
                       Cancelar

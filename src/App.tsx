@@ -20,6 +20,7 @@ import CalendarPage from "@/pages/student/CalendarPage";
 import MyBookingsPage from "@/pages/student/MyBookingsPage";
 import NotificationsPage from "@/pages/student/NotificationsPage";
 import ProfilePage from "@/pages/student/ProfilePage";
+import PlansPage from "@/pages/student/PlansPage";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -28,6 +29,7 @@ import AdminBookingsPage from "@/pages/admin/AdminBookingsPage";
 import AdminStudentsPage from "@/pages/admin/AdminStudentsPage";
 import AdminBulkSchedulePage from "@/pages/admin/AdminBulkSchedulePage";
 import AdminReportsPage from "@/pages/admin/AdminReportsPage";
+import AdminPlansPage from "@/pages/admin/AdminPlansPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -69,6 +71,7 @@ const App = () => (
               <Route path="/my-bookings" element={<MyBookingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/plans" element={<PlansPage />} />
             </Route>
 
             {/* Admin */}
@@ -79,6 +82,7 @@ const App = () => (
               <Route path="/admin/students" element={<AdminStudentsPage />} />
               <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />
+              <Route path="/admin/plans" element={<AdminPlansPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

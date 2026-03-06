@@ -13,6 +13,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import luxonPlugin from '@fullcalendar/luxon3';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type SlotTime = { start_time: string; end_time: string };
 
@@ -96,6 +97,7 @@ const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: str
 };
 
 const AdminBulkSchedulePage = () => {
+  const isMobile = useIsMobile();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -169,7 +171,7 @@ const AdminBulkSchedulePage = () => {
     <div className="space-y-4">
       <h1 className="font-display text-xl uppercase tracking-wider">Pré-agendar em lote</h1>
 
-      <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
         <div className="space-y-2">
           <Label>Selecionar aluno</Label>
           <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
@@ -194,11 +196,11 @@ const AdminBulkSchedulePage = () => {
       <div className="rounded-xl border border-border bg-card p-2 sm:p-4">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
-          initialView="timeGridWeek"
+          initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
           headerToolbar={{
-            left: 'prev,next',
-            center: 'title',
-            right: 'timeGridWeek,timeGridDay',
+            left: isMobile ? 'prev title next' : 'prev,next',
+            center: isMobile ? '' : 'title',
+            right: isMobile ? '' : 'timeGridWeek,timeGridDay',
           }}
           locale="pt-br"
           timeZone="America/Sao_Paulo"
@@ -231,13 +233,13 @@ const AdminBulkSchedulePage = () => {
         <div className="space-y-2">
           <h2 className="font-display text-lg uppercase tracking-wider">Resultado</h2>
           {results.map((r: any, i: number) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card p-3">
+            <div key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-3">
               {r.success ? (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               ) : (
                 <XCircle className="h-4 w-4 text-destructive" />
               )}
-              <span className="text-sm text-foreground">
+              <span className="text-sm text-foreground break-words">
                 Horário {i + 1}: {r.success ? 'Agendado' : r.error}
               </span>
             </div>

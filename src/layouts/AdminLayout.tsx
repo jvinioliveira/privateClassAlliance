@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+﻿import { Outlet } from 'react-router-dom';
 import {
   Calendar,
   Clock,
@@ -6,6 +6,7 @@ import {
   Users,
   CalendarPlus,
   BarChart3,
+  WalletCards,
   LogOut,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
@@ -20,14 +21,15 @@ const adminNavItems = [
   { to: '/admin/students', icon: Users, label: 'Alunos' },
   { to: '/admin/bulk-schedule', icon: CalendarPlus, label: 'Lote' },
   { to: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
+  { to: '/admin/plans', icon: WalletCards, label: 'Planos' },
 ];
 
 const AdminLayout = () => {
   const { signOut } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur-lg">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col bg-background pb-20">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-lg">
         <Logo size="sm" />
         <Button
           variant="ghost"
@@ -40,7 +42,7 @@ const AdminLayout = () => {
         </Button>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl p-4 md:p-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 p-3 md:p-6">
         <Outlet />
       </main>
 
@@ -50,3 +52,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+

@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Users, User } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type SlotTime = { start_time: string; end_time: string };
 
@@ -105,6 +106,7 @@ const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: str
 };
 
 const AdminDashboard = () => {
+  const isMobile = useIsMobile();
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
 
@@ -195,11 +197,11 @@ const AdminDashboard = () => {
       <div className="rounded-xl border border-border bg-card p-2 sm:p-4">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
-          initialView="timeGridWeek"
+          initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
           headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+            left: isMobile ? 'prev title next' : 'prev,next today',
+            center: isMobile ? '' : 'title',
+            right: isMobile ? '' : 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
           locale="pt-br"
           timeZone="America/Sao_Paulo"
@@ -226,7 +228,7 @@ const AdminDashboard = () => {
       </div>
 
       <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto bg-card border-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-lg uppercase tracking-wider">
               Detalhes do horário
@@ -248,7 +250,7 @@ const AdminDashboard = () => {
                 </span>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Badge variant={selectedSlot.status === 'blocked' ? 'outline' : 'default'}>
                   {selectedSlot.status === 'blocked' ? 'Bloqueado' : 'Disponível'}
                 </Badge>

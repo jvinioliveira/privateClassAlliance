@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, User, Clock, AlertTriangle } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const getMonthBounds = (monthRef: string) => {
   const [year, month] = monthRef.split('-').map(Number);
@@ -120,6 +121,7 @@ const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: str
 };
 
 const CalendarPage = () => {
+  const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -316,19 +318,19 @@ const CalendarPage = () => {
     <div className="space-y-4 p-4">
       {/* Credits card */}
       <div className="rounded-xl border border-border bg-card p-4 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-display">
               Aulas este mês
             </p>
-            <p className="mt-1 text-2xl font-bold text-foreground font-display">
+            <p className="mt-1 text-xl font-bold text-foreground font-display sm:text-2xl">
               <span className="text-primary">{usedCredits || 0}</span>
               <span className="text-muted-foreground">/{credits?.monthly_limit || 0}</span>
             </p>
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p className="text-xs text-muted-foreground">Restantes</p>
-            <p className={`text-xl font-bold font-display ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>
+            <p className={`text-lg font-bold font-display sm:text-xl ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>
               {remaining < 0 ? 0 : remaining}
             </p>
           </div>
@@ -339,11 +341,11 @@ const CalendarPage = () => {
       <div className="rounded-xl border border-border bg-card p-2 sm:p-4 animate-fade-in">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
-          initialView="dayGridMonth"
+          initialView={isMobile ? 'timeGridDay' : 'dayGridMonth'}
           headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay',
+            left: isMobile ? 'prev title next' : 'prev,next today',
+            center: isMobile ? '' : 'title',
+            right: isMobile ? '' : 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
           locale="pt-br"
           timeZone="America/Sao_Paulo"
@@ -370,7 +372,7 @@ const CalendarPage = () => {
 
       {/* Booking Modal */}
       <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto bg-card border-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-lg uppercase tracking-wider">
               {selectedSlot?.isMine ? 'Aula agendada' : selectedSlot?.isFull ? 'Horário lotado' : 'Agendar aula'}

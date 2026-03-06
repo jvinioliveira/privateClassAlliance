@@ -7,6 +7,8 @@ type UserRole = 'student' | 'admin';
 interface Profile {
   id: string;
   full_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
   role: UserRole;
 }
 
@@ -40,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, role')
+      .select('id, full_name, phone, avatar_url, role')
       .eq('id', userId)
       .maybeSingle();
 

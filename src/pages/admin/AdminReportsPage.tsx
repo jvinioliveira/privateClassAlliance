@@ -33,7 +33,7 @@ const AdminReportsPage = () => {
     <div className="space-y-4">
       <h1 className="font-display text-xl uppercase tracking-wider">Relatório mensal</h1>
 
-      <div className="flex items-end gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="space-y-1 flex-1">
           <Label>Mês</Label>
           <Input
@@ -46,14 +46,14 @@ const AdminReportsPage = () => {
         <Button
           onClick={() => reportMutation.mutate()}
           disabled={reportMutation.isPending}
-          className="font-display uppercase"
+          className="w-full font-display uppercase sm:w-auto"
         >
           {reportMutation.isPending ? 'Carregando...' : 'Gerar'}
         </Button>
       </div>
 
       {report && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-fade-in">
+        <div className="grid grid-cols-1 gap-3 animate-fade-in sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
             <div key={card.label} className="rounded-xl border border-border bg-card p-4 text-center">
               <card.icon className={`mx-auto h-5 w-5 ${card.color} mb-2`} />

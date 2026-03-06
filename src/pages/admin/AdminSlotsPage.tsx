@@ -278,13 +278,13 @@ const AdminSlotsPage = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-xl uppercase tracking-wider">Horários</h1>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="font-display uppercase tracking-wider">
+              <Button size="sm" className="w-full font-display uppercase tracking-wider sm:w-auto">
                 <Plus className="mr-1 h-4 w-4" /> Criar
               </Button>
             </DialogTrigger>
@@ -294,7 +294,7 @@ const AdminSlotsPage = () => {
               </DialogHeader>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Data</Label>
                     <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-background" />
@@ -305,7 +305,7 @@ const AdminSlotsPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Duração (min)</Label>
                     <Input
@@ -341,7 +341,7 @@ const AdminSlotsPage = () => {
 
           <Dialog open={recOpen} onOpenChange={setRecOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="font-display uppercase tracking-wider">
+              <Button size="sm" variant="outline" className="w-full font-display uppercase tracking-wider sm:w-auto">
                 Recorrência
               </Button>
             </DialogTrigger>
@@ -376,7 +376,7 @@ const AdminSlotsPage = () => {
                   <Input type="time" value={recTime} onChange={(e) => setRecTime(e.target.value)} className="bg-background" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>De</Label>
                     <Input
@@ -421,7 +421,7 @@ const AdminSlotsPage = () => {
 
           <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="secondary" className="font-display uppercase tracking-wider">
+              <Button size="sm" variant="secondary" className="w-full font-display uppercase tracking-wider sm:w-auto">
                 Editar recorrência
               </Button>
             </DialogTrigger>
@@ -451,7 +451,7 @@ const AdminSlotsPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>De</Label>
                     <Input
@@ -510,7 +510,7 @@ const AdminSlotsPage = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label>Duração (min)</Label>
                         <Input
@@ -567,8 +567,8 @@ const AdminSlotsPage = () => {
               key={slot.id}
               className="animate-fade-in rounded-xl border border-border bg-card p-3"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">
@@ -590,7 +590,7 @@ const AdminSlotsPage = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-1">
+                <div className="flex self-end gap-1 sm:self-auto">
                   <Button
                     variant="ghost"
                     size="icon"
