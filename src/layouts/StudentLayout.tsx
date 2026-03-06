@@ -15,16 +15,16 @@ const StudentLayout = () => {
   const { profile } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background pb-20 md:min-h-screen md:h-auto md:overflow-visible">
       {/* Top header - mobile */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur-lg">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-lg">
         <Logo size="sm" />
         <span className="text-xs text-muted-foreground font-medium">
           {profile?.full_name || 'Aluno'}
         </span>
       </header>
 
-      <main className="mx-auto max-w-4xl">
+      <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </main>
 
