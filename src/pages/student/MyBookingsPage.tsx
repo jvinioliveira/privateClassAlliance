@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking } from '@/hooks/useSupabaseData';
@@ -87,7 +87,7 @@ const MyBookingsPage = () => {
                             day: '2-digit',
                             month: '2-digit',
                             timeZone: 'America/Sao_Paulo',
-                          })}{' '}
+                          }).replace(/\./g, '')}{' '}
                         às{' '}
                         {booking.slot &&
                           new Date(booking.slot.start_time).toLocaleTimeString('pt-BR', {
@@ -134,3 +134,4 @@ const MyBookingsPage = () => {
 };
 
 export default MyBookingsPage;
+

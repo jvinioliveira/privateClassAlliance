@@ -5,6 +5,7 @@ interface BottomNavItem {
   to: string;
   icon: LucideIcon;
   label: string;
+  end?: boolean;
 }
 
 interface BottomNavProps {
@@ -19,6 +20,7 @@ const BottomNav = ({ items }: BottomNavProps) => {
           <RouterNavLink
             key={item.to}
             to={item.to}
+            end={item.end}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors ${
                 isActive

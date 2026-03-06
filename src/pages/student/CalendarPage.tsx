@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import luxonPlugin from '@fullcalendar/luxon3';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { bookSlot, joinWaitlist } from '@/hooks/useSupabaseData';
@@ -22,6 +23,100 @@ const getMonthBounds = (monthRef: string) => {
     start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
     end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
   };
+};
+
+type SlotTime = { start_time: string; end_time: string };
+
+const getSlotTimeParts = (isoDate: string) => {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(isoDate));
+
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+
+  return { hour, minute };
+};
+
+const formatTimeWithH = (isoDate: string) => {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(isoDate));
+
+  const hourRaw = parts.find((p) => p.type === 'hour')?.value ?? '00';
+  const minuteRaw = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  return `${hourRaw}h${minuteRaw}`;
+};
+
+const toCalendarTime = (totalMinutes: number) => {
+  const clamped = Math.max(0, Math.min(24 * 60, totalMinutes));
+  const hours = Math.floor(clamped / 60);
+  const minutes = clamped % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+};
+
+const getCalendarWindow = (slotList: SlotTime[]) => {
+  if (!slotList.length) {
+    return { slotMinTime: '08:00:00', slotMaxTime: '09:00:00' };
+  }
+
+  let minStart = 24 * 60;
+  let maxEnd = 0;
+
+  for (const slot of slotList) {
+    const start = getSlotTimeParts(slot.start_time);
+    const end = getSlotTimeParts(slot.end_time);
+    minStart = Math.min(minStart, start.hour * 60 + start.minute);
+    maxEnd = Math.max(maxEnd, end.hour * 60 + end.minute);
+  }
+
+  const paddedMin = Math.max(0, minStart - 15);
+  const paddedMax = Math.min(24 * 60, maxEnd + 15);
+
+  return {
+    slotMinTime: toCalendarTime(paddedMin),
+    slotMaxTime: toCalendarTime(Math.max(paddedMax, paddedMin + 30)),
+  };
+};
+
+const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: string } }) => {
+  if (!arg.view.type.startsWith('timeGrid')) return arg.text.replace(/\./g, '');
+
+  const dateLabel = arg.date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  });
+
+  const weekdayLongLabel = arg.date
+    .toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      timeZone: 'America/Sao_Paulo',
+    })
+    .replace('-feira', '');
+
+  const weekdayShortLabel = arg.date
+    .toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      timeZone: 'America/Sao_Paulo',
+    })
+    .replace(/\./g, '');
+
+  return (
+    <div className="flex flex-col items-center leading-tight">
+      <span>{dateLabel}</span>
+      <span className="text-[11px] text-muted-foreground">
+        <span className="capitalize sm:hidden">{weekdayShortLabel}</span>
+        <span className="hidden capitalize sm:inline">{weekdayLongLabel}</span>
+      </span>
+    </div>
+  );
 };
 
 const CalendarPage = () => {
@@ -81,7 +176,7 @@ const CalendarPage = () => {
         .from('availability_slots')
         .select('*')
         .gte('start_time', dateRange.start)
-        .lte('start_time', dateRange.end)
+        .lt('start_time', dateRange.end)
         .eq('status', 'available')
         .order('start_time');
       if (error) throw error;
@@ -89,6 +184,8 @@ const CalendarPage = () => {
     },
     enabled: !!dateRange.start,
   });
+
+  const calendarWindow = useMemo(() => getCalendarWindow(slots), [slots]);
 
   // Bookings for these slots
   const slotIds = slots.map((s) => s.id);
@@ -115,14 +212,15 @@ const CalendarPage = () => {
       const freeSeats = slot.capacity - usedSeats;
       const isMine = slotBookings.some((b) => b.student_id === user?.id);
       const isFull = freeSeats <= 0;
+      const statusLabel = isMine
+        ? 'Agendado'
+        : isFull
+        ? 'Lotado'
+        : `${freeSeats}/${slot.capacity} vagas`;
 
       return {
         id: slot.id,
-        title: isMine
-          ? '✓ Agendado'
-          : isFull
-          ? 'Lotado'
-          : `${freeSeats}/${slot.capacity} vagas`,
+        title: statusLabel,
         start: slot.start_time,
         end: slot.end_time,
         backgroundColor: isMine
@@ -138,10 +236,26 @@ const CalendarPage = () => {
           isMine,
           isFull,
           usedSeats,
+          timeLabel: formatTimeWithH(slot.start_time),
+          statusLabel,
         },
       };
     });
   }, [slots, bookings, user]);
+
+  const renderEventContent = (eventInfo: any) => {
+    const { timeLabel, statusLabel } = eventInfo.event.extendedProps as {
+      timeLabel: string;
+      statusLabel: string;
+    };
+
+    return (
+      <div className="w-full overflow-hidden whitespace-nowrap text-[11px] sm:text-xs">
+        <span className="font-semibold">{timeLabel}</span>
+        <span className="hidden truncate sm:inline"> - {statusLabel}</span>
+      </div>
+    );
+  };
 
   const bookMutation = useMutation({
     mutationFn: ({ slotId, seats }: { slotId: string; seats: number }) =>
@@ -178,9 +292,22 @@ const CalendarPage = () => {
 
   const handleDatesSet = (dateInfo: any) => {
     setDateRange({
-      start: dateInfo.startStr,
-      end: dateInfo.endStr,
+      start: dateInfo.start.toISOString(),
+      end: dateInfo.end.toISOString(),
     });
+  };
+
+  const handleDateClick = (info: any) => {
+    if (info.view.type === 'dayGridMonth') {
+      const dayStart = new Date(info.date);
+      const dayEnd = new Date(info.date);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      setDateRange({
+        start: dayStart.toISOString(),
+        end: dayEnd.toISOString(),
+      });
+      info.view.calendar.changeView('timeGridDay', info.dateStr);
+    }
   };
 
   const remaining = (credits?.monthly_limit || 0) - (usedCredits || 0);
@@ -211,7 +338,7 @@ const CalendarPage = () => {
       {/* Calendar */}
       <div className="rounded-xl border border-border bg-card p-2 sm:p-4 animate-fade-in">
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{
             left: 'prev,next today',
@@ -220,7 +347,13 @@ const CalendarPage = () => {
           }}
           locale="pt-br"
           timeZone="America/Sao_Paulo"
+          allDaySlot={false}
+          dayHeaderContent={renderTimeGridHeader}
+          dateClick={handleDateClick}
+          slotMinTime={calendarWindow.slotMinTime}
+          slotMaxTime={calendarWindow.slotMaxTime}
           events={events}
+          eventContent={renderEventContent}
           eventClick={handleEventClick}
           datesSet={handleDatesSet}
           height="auto"
@@ -256,11 +389,7 @@ const CalendarPage = () => {
                     timeZone: 'America/Sao_Paulo',
                   })}{' '}
                   às{' '}
-                  {new Date(selectedSlot.start_time).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'America/Sao_Paulo',
-                  })}
+                  {formatTimeWithH(selectedSlot.start_time)}
                 </span>
               </div>
 

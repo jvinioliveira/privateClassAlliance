@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -93,8 +93,23 @@
 
 .fc .fc-toolbar-title {
   font-family: 'Oswald', sans-serif !important;
-  @apply text-lg sm:text-xl font-semibold uppercase tracking-wider;
+  @apply text-base sm:text-xl font-semibold uppercase tracking-wider text-center;
   color: hsl(40 20% 92%);
+}
+
+@media (max-width: 640px) {
+  .fc .fc-toolbar.fc-header-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: 0.5rem;
+  }
+
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
 }
 
 .fc .fc-col-header-cell-cushion,
@@ -115,6 +130,12 @@
 
 .fc .fc-daygrid-event {
   @apply rounded-md text-xs px-1 py-0.5 cursor-pointer;
+}
+
+.fc .fc-event-main {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fc .fc-timegrid-slot {

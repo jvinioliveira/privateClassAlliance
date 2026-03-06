@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cancelBooking, adminCheckIn } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
@@ -47,7 +47,7 @@ const AdminBookingsPage = () => {
   const checkInMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => adminCheckIn(id, status),
     onSuccess: () => {
-      toast.success('Check-in realizado');
+      toast.success('Presença registrada');
       queryClient.invalidateQueries({ queryKey: ['admin-all-bookings'] });
     },
     onError: (err: any) => toast.error(err.message),
@@ -58,6 +58,15 @@ const AdminBookingsPage = () => {
     completed: 'secondary',
     cancelled: 'destructive',
     no_show: 'outline',
+  };
+
+  const statusLabels: Record<string, string> = {
+    booked: 'Agendado',
+    completed: 'Conclu\u00eddo',
+    cancelled: 'Cancelado',
+    no_show: 'Falta',
+    present: 'Presente',
+    absent: 'Ausente',
   };
 
   return (
@@ -71,7 +80,7 @@ const AdminBookingsPage = () => {
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="booked">Agendados</SelectItem>
-            <SelectItem value="completed">Concluídos</SelectItem>
+            <SelectItem value="completed">Conclu\u00eddos</SelectItem>
             <SelectItem value="cancelled">Cancelados</SelectItem>
             <SelectItem value="no_show">Faltas</SelectItem>
           </SelectContent>
@@ -97,14 +106,14 @@ const AdminBookingsPage = () => {
                     {b.slot &&
                       new Date(b.slot.start_time).toLocaleDateString('pt-BR', {
                         weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo',
-                      })}{' '}
+                      }).replace(/\./g, '')}{' '}
                     {b.slot &&
                       new Date(b.slot.start_time).toLocaleTimeString('pt-BR', {
                         hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
                       })}
                   </div>
                   <div className="flex gap-2">
-                    <Badge variant={statusColors[b.status] as any}>{b.status}</Badge>
+                    <Badge variant={statusColors[b.status] as any}>{statusLabels[b.status] || b.status}</Badge>
                     <Badge variant="secondary">{b.seats_reserved === 2 ? 'Dupla' : 'Individual'}</Badge>
                     {b.created_by_admin && <Badge variant="outline">Lote</Badge>}
                   </div>

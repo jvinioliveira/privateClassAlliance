@@ -55,8 +55,8 @@ const ResetPasswordPage = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm animate-fade-in space-y-8">
-        <div className="flex flex-col items-center gap-4">
-          <Logo size="lg" />
+        <div className="flex flex-col items-center gap-5 text-center">
+          <Logo size="xl" className="w-full justify-center" />
           <h1 className="font-display text-2xl uppercase tracking-widest text-foreground">
             {isRecovery ? 'Nova senha' : 'Recuperar senha'}
           </h1>
