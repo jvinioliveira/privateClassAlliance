@@ -55,9 +55,11 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await signInWithGoogle();
+      navigate('/', { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao entrar com Google';
       toast.error(message);
+    } finally {
       setLoading(false);
     }
   };

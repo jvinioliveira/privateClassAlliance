@@ -2,6 +2,58 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+const GOOGLE_GSI_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
+let gsiScriptLoadingPromise: Promise<void> | null = null;
+
+interface GoogleCredentialResponse {
+  credential?: string;
+}
+
+interface GooglePromptNotification {
+  isNotDisplayed?: () => boolean;
+  isSkippedMoment?: () => boolean;
+}
+
+interface GoogleIdApi {
+  initialize: (params: {
+    client_id: string;
+    callback: (response: GoogleCredentialResponse) => void;
+    ux_mode?: 'popup' | 'redirect';
+    auto_select?: boolean;
+    cancel_on_tap_outside?: boolean;
+  }) => void;
+  prompt: (listener?: (notification: GooglePromptNotification) => void) => void;
+}
+
+interface GoogleAccountsApi {
+  accounts: {
+    id: GoogleIdApi;
+  };
+}
+
+declare global {
+  interface Window {
+    google?: GoogleAccountsApi;
+  }
+}
+
+const loadGoogleIdentityScript = async () => {
+  if (window.google?.accounts?.id) return;
+  if (gsiScriptLoadingPromise) return gsiScriptLoadingPromise;
+
+  gsiScriptLoadingPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = GOOGLE_GSI_SCRIPT_URL;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Falha ao carregar Google Identity Services.'));
+    document.head.appendChild(script);
+  });
+
+  return gsiScriptLoadingPromise;
+};
+
 type UserRole = 'student' | 'admin';
 
 interface Profile {
@@ -111,11 +163,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+    if (!googleClientId) {
+      throw new Error('Configure VITE_GOOGLE_CLIENT_ID para habilitar login com Google.');
+    }
+
+    await loadGoogleIdentityScript();
+    const gsi = window.google?.accounts?.id;
+    if (!gsi) {
+      throw new Error('Google Identity Services indisponivel.');
+    }
+
+    const idToken = await new Promise<string>((resolve, reject) => {
+      let finished = false;
+      const timeoutId = window.setTimeout(() => {
+        if (finished) return;
+        finished = true;
+        reject(new Error('Tempo limite do login com Google excedido.'));
+      }, 120000);
+
+      gsi.initialize({
+        client_id: googleClientId,
+        ux_mode: 'popup',
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        callback: (response) => {
+          if (finished) return;
+          finished = true;
+          window.clearTimeout(timeoutId);
+          if (!response.credential) {
+            reject(new Error('Nao foi possivel obter credencial do Google.'));
+            return;
+          }
+          resolve(response.credential);
+        },
+      });
+
+      gsi.prompt((notification) => {
+        if (finished) return;
+        if (notification?.isNotDisplayed?.()) {
+          finished = true;
+          window.clearTimeout(timeoutId);
+          reject(new Error('Nao foi possivel abrir o popup do Google.'));
+          return;
+        }
+        if (notification?.isSkippedMoment?.()) {
+          finished = true;
+          window.clearTimeout(timeoutId);
+          reject(new Error('Login com Google cancelado.'));
+        }
+      });
+    });
+
+    const { error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
+      token: idToken,
     });
     if (error) throw error;
   };
