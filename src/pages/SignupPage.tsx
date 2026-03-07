@@ -8,6 +8,27 @@ import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
 
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+    <path
+      fill="#EA4335"
+      d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.5 14.6 2.6 12 2.6A9.4 9.4 0 1 0 12 21.4c5.4 0 9-3.8 9-9.1 0-.6-.1-1.1-.2-1.5z"
+    />
+    <path
+      fill="#34A853"
+      d="M3.7 7.4l3.2 2.3A5.9 5.9 0 0 1 12 6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.5 14.6 2.6 12 2.6c-3.6 0-6.7 2-8.3 4.8z"
+    />
+    <path
+      fill="#4A90E2"
+      d="M12 21.4c2.5 0 4.7-.8 6.3-2.3l-2.9-2.3c-.8.6-1.8 1-3.4 1-3.9 0-5.4-2.7-5.6-4l-3.2 2.5A9.4 9.4 0 0 0 12 21.4z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M6.4 13.8a6.2 6.2 0 0 1 0-3.6L3.2 7.7a9.4 9.4 0 0 0 0 8.6z"
+    />
+  </svg>
+);
+
 const SignupPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +38,7 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,9 +54,21 @@ const SignupPage = () => {
       await signUp(email, password, fullName);
       setSuccess(true);
       toast.success('Conta criada! Verifique seu email para confirmar.');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao cadastrar');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar';
+      toast.error(message);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao continuar com Google';
+      toast.error(message);
       setLoading(false);
     }
   };
@@ -144,6 +177,24 @@ const SignupPage = () => {
 
           <Button type="submit" className="w-full font-display uppercase tracking-wider" disabled={loading}>
             {loading ? 'Criando conta...' : 'Criar conta'}
+          </Button>
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">ou</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2 font-display uppercase tracking-wider"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <GoogleIcon />
+            Continuar com Google
           </Button>
         </form>
 
