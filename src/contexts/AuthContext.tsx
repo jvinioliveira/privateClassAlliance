@@ -12,6 +12,7 @@ interface GoogleCredentialResponse {
 interface GooglePromptNotification {
   isNotDisplayed?: () => boolean;
   isSkippedMoment?: () => boolean;
+  isDismissedMoment?: () => boolean;
 }
 
 interface GoogleIdApi {
@@ -30,6 +31,10 @@ interface GoogleAccountsApi {
     id: GoogleIdApi;
   };
 }
+
+type GoogleSignInResult =
+  | { kind: 'id_token'; token: string }
+  | { kind: 'fallback_redirect' };
 
 declare global {
   interface Window {
@@ -145,6 +150,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  useEffect(() => {
+    // Preload GSI script to preserve user gesture during click on mobile browsers.
+    void loadGoogleIdentityScript().catch((error) => {
+      console.warn('Could not preload Google Identity Services', error);
+    });
+  }, []);
+
   const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -168,18 +180,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Configure VITE_GOOGLE_CLIENT_ID para habilitar login com Google.');
     }
 
+    const signInWithOAuthRedirect = async () => {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    };
+
     await loadGoogleIdentityScript();
     const gsi = window.google?.accounts?.id;
     if (!gsi) {
-      throw new Error('Google Identity Services indisponivel.');
+      await signInWithOAuthRedirect();
+      return;
     }
 
-    const idToken = await new Promise<string>((resolve, reject) => {
+    const signInResult = await new Promise<GoogleSignInResult>((resolve, reject) => {
       let finished = false;
       const timeoutId = window.setTimeout(() => {
         if (finished) return;
         finished = true;
-        reject(new Error('Tempo limite do login com Google excedido.'));
+        reject(new Error('Nao foi possivel concluir o login com Google. Tente novamente.'));
       }, 120000);
 
       gsi.initialize({
@@ -195,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             reject(new Error('Nao foi possivel obter credencial do Google.'));
             return;
           }
-          resolve(response.credential);
+          resolve({ kind: 'id_token', token: response.credential });
         },
       });
 
@@ -204,10 +227,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (notification?.isNotDisplayed?.()) {
           finished = true;
           window.clearTimeout(timeoutId);
-          reject(new Error('Nao foi possivel abrir o popup do Google.'));
+          resolve({ kind: 'fallback_redirect' });
           return;
         }
-        if (notification?.isSkippedMoment?.()) {
+        // Do not fail on "not displayed" or "skipped" moments because these
+        // can happen before a successful credential callback in some browsers.
+        if (notification?.isDismissedMoment?.()) {
           finished = true;
           window.clearTimeout(timeoutId);
           reject(new Error('Login com Google cancelado.'));
@@ -215,9 +240,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     });
 
+    if (signInResult.kind === 'fallback_redirect') {
+      await signInWithOAuthRedirect();
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
-      token: idToken,
+      token: signInResult.token,
     });
     if (error) throw error;
   };
