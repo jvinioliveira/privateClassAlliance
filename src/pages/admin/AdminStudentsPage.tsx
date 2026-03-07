@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +9,12 @@ import { toast } from 'sonner';
 import { Users, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+type StudentProfile = Database['public']['Tables']['profiles']['Row'];
+type StudentCredit = Database['public']['Tables']['student_month_credits']['Row'];
+
 const AdminStudentsPage = () => {
   const queryClient = useQueryClient();
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [monthInput, setMonthInput] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -26,7 +30,7 @@ const AdminStudentsPage = () => {
         .eq('role', 'student')
         .order('full_name');
       if (error) throw error;
-      return data;
+      return (data || []) as StudentProfile[];
     },
   });
 
@@ -40,7 +44,7 @@ const AdminStudentsPage = () => {
         .select('*')
         .eq('month_ref', monthRef);
       if (error) throw error;
-      return data;
+      return (data || []) as StudentCredit[];
     },
   });
 
@@ -64,7 +68,7 @@ const AdminStudentsPage = () => {
       setSelectedStudent(null);
       queryClient.invalidateQueries({ queryKey: ['admin-credits'] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const getCreditsForStudent = (studentId: string) => {
@@ -74,7 +78,7 @@ const AdminStudentsPage = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-display text-xl uppercase tracking-wider">Alunos & Créditos</h1>
+        <h1 className="font-display text-xl uppercase tracking-wider">Alunos e Créditos</h1>
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <Label className="text-xs text-muted-foreground">Mês:</Label>
           <Input
@@ -92,12 +96,22 @@ const AdminStudentsPage = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {students.map((s: any) => {
+          {students.map((s) => {
             const credit = getCreditsForStudent(s.id);
             return (
               <div key={s.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 animate-fade-in sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                  <Users className="h-4 w-4 text-primary" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
+                    {s.avatar_url ? (
+                      <img
+                        src={s.avatar_url}
+                        alt={`Foto de ${s.full_name || 'aluno'}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Users className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
                   <div>
                     <p className="text-sm font-medium break-words">{s.full_name || 'Sem nome'}</p>
                     <p className="text-xs text-muted-foreground">

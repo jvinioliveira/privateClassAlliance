@@ -7,6 +7,7 @@ import {
   CalendarPlus,
   BarChart3,
   WalletCards,
+  UserCircle,
   LogOut,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
@@ -22,6 +23,7 @@ const adminNavItems = [
   { to: '/admin/bulk-schedule', icon: CalendarPlus, label: 'Lote' },
   { to: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
   { to: '/admin/plans', icon: WalletCards, label: 'Planos' },
+  { to: '/admin/profile', icon: UserCircle, label: 'Perfil' },
 ];
 
 const AdminLayout = () => {

@@ -22,6 +22,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
   isAdmin: boolean;
 }
 
@@ -126,6 +127,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
+  const refreshProfile = async () => {
+    if (!user?.id) {
+      setProfile(null);
+      return;
+    }
+    await fetchProfile(user.id);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -138,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         resetPassword,
         updatePassword,
+        refreshProfile,
         isAdmin: profile?.role === 'admin',
       }}
     >

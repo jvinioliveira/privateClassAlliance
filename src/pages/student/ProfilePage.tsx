@@ -1,17 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { LogOut, UserCircle } from 'lucide-react';
+import { LogOut, Pencil, UserCircle } from 'lucide-react';
+
+const formatPhoneBR = (input: string) => {
+  const digits = input.replace(/\D/g, '').slice(0, 11);
+  if (!digits) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
 
 const ProfilePage = () => {
-  const { profile, signOut, user, updatePassword } = useAuth();
+  const { profile, signOut, user, updatePassword, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [isEditingPhone, setIsEditingPhone] = useState(!(profile?.phone || '').trim());
+  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const previewUrlRef = useRef<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -19,27 +37,81 @@ const ProfilePage = () => {
 
   useEffect(() => {
     setFullName(profile?.full_name || '');
-    setPhone(profile?.phone || '');
-    setAvatarUrl(profile?.avatar_url || '');
+    const initialPhone = profile?.phone || '';
+    setPhone(formatPhoneBR(initialPhone));
+    setIsEditingPhone(!initialPhone.trim());
+    setAvatarPreview(profile?.avatar_url || '');
+    setAvatarFile(null);
+    setRemoveAvatar(false);
   }, [profile?.full_name, profile?.phone, profile?.avatar_url, profile?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
+
+  const handleAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione um arquivo de imagem.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no maximo 5MB.');
+      return;
+    }
+
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    previewUrlRef.current = objectUrl;
+    setAvatarFile(file);
+    setRemoveAvatar(false);
+    setAvatarPreview(objectUrl);
+  };
 
   const handleSaveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
     try {
+      let nextAvatarUrl = removeAvatar ? null : profile?.avatar_url || null;
+
+      if (avatarFile) {
+        const fileExtension = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const filePath = `${user.id}/avatar.${fileExtension}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicFile } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        nextAvatarUrl = `${publicFile.publicUrl}?v=${Date.now()}`;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: fullName.trim() || null,
           phone: phone.trim() || null,
-          avatar_url: avatarUrl.trim() || null,
+          avatar_url: nextAvatarUrl,
         })
         .eq('id', user.id);
 
       if (error) throw error;
+      await refreshProfile();
+      setIsEditingPhone(!(phone.trim()));
       toast.success('Perfil atualizado');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar perfil');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Erro ao salvar perfil'));
     } finally {
       setSavingProfile(false);
     }
@@ -62,8 +134,8 @@ const ProfilePage = () => {
       toast.success('Senha atualizada');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao atualizar senha');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Erro ao atualizar senha'));
     } finally {
       setSavingPassword(false);
     }
@@ -77,12 +149,31 @@ const ProfilePage = () => {
 
       <div className="animate-fade-in space-y-4 rounded-xl border border-border bg-card p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary/10">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
-            ) : (
-              <UserCircle className="h-7 w-7 text-primary" />
-            )}
+          <div className="relative">
+            <input
+              ref={avatarInputRef}
+              id="avatarFile"
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarFileChange}
+              className="hidden"
+            />
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary/10">
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="Foto de perfil" className="h-full w-full object-cover" />
+              ) : (
+                <UserCircle className="h-7 w-7 text-primary" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground"
+              aria-label="Alterar foto de perfil"
+              title="Alterar foto"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div>
             <p className="font-medium text-foreground">{profile?.full_name || 'Aluno'}</p>
@@ -102,27 +193,61 @@ const ProfilePage = () => {
 
         <div className="space-y-2">
           <Label htmlFor="phone">Telefone</Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(11) 99999-9999"
-            className="border-border bg-background"
-          />
+          {!isEditingPhone && phone.trim() ? (
+            <div className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2">
+              <span className="text-sm text-foreground">{phone}</span>
+              <button
+                type="button"
+                onClick={() => setIsEditingPhone(true)}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Editar
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
+                placeholder="(99) 99999-9999"
+                className="border-border bg-background"
+              />
+              {(profile?.phone || '').trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhone(formatPhoneBR(profile?.phone || ''));
+                    setIsEditingPhone(false);
+                  }}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  Cancelar edição
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="avatarUrl">Foto (URL opcional)</Label>
-          <Input
-            id="avatarUrl"
-            type="url"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            placeholder="https://..."
-            className="border-border bg-background"
-          />
-        </div>
+        {avatarPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (previewUrlRef.current) {
+                URL.revokeObjectURL(previewUrlRef.current);
+                previewUrlRef.current = null;
+              }
+              setAvatarFile(null);
+              setAvatarPreview('');
+              setRemoveAvatar(true);
+            }}
+            className="w-full"
+          >
+            Remover foto
+          </Button>
+        )}
 
         <Button
           onClick={handleSaveProfile}

@@ -83,6 +83,7 @@ const App = () => (
               <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />
               <Route path="/admin/plans" element={<AdminPlansPage />} />
+              <Route path="/admin/profile" element={<ProfilePage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
