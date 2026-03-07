@@ -2,63 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-const GOOGLE_GSI_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
-let gsiScriptLoadingPromise: Promise<void> | null = null;
-
-interface GoogleCredentialResponse {
-  credential?: string;
-}
-
-interface GooglePromptNotification {
-  isNotDisplayed?: () => boolean;
-  isSkippedMoment?: () => boolean;
-  isDismissedMoment?: () => boolean;
-}
-
-interface GoogleIdApi {
-  initialize: (params: {
-    client_id: string;
-    callback: (response: GoogleCredentialResponse) => void;
-    ux_mode?: 'popup' | 'redirect';
-    auto_select?: boolean;
-    cancel_on_tap_outside?: boolean;
-  }) => void;
-  prompt: (listener?: (notification: GooglePromptNotification) => void) => void;
-}
-
-interface GoogleAccountsApi {
-  accounts: {
-    id: GoogleIdApi;
-  };
-}
-
-type GoogleSignInResult =
-  | { kind: 'id_token'; token: string }
-  | { kind: 'fallback_redirect' };
-
-declare global {
-  interface Window {
-    google?: GoogleAccountsApi;
-  }
-}
-
-const loadGoogleIdentityScript = async () => {
-  if (window.google?.accounts?.id) return;
-  if (gsiScriptLoadingPromise) return gsiScriptLoadingPromise;
-
-  gsiScriptLoadingPromise = new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = GOOGLE_GSI_SCRIPT_URL;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Falha ao carregar Google Identity Services.'));
-    document.head.appendChild(script);
-  });
-
-  return gsiScriptLoadingPromise;
-};
-
 type UserRole = 'student' | 'admin';
 
 interface Profile {
@@ -150,13 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  useEffect(() => {
-    // Preload GSI script to preserve user gesture during click on mobile browsers.
-    void loadGoogleIdentityScript().catch((error) => {
-      console.warn('Could not preload Google Identity Services', error);
-    });
-  }, []);
-
   const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -175,81 +111,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-    if (!googleClientId) {
-      throw new Error('Configure VITE_GOOGLE_CLIENT_ID para habilitar login com Google.');
+    const popupRedirect = `${window.location.origin}/auth/popup-callback`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: popupRedirect,
+        skipBrowserRedirect: true,
+      },
+    });
+    if (error) throw error;
+
+    const popupUrl = data?.url;
+    if (!popupUrl) {
+      throw new Error('Nao foi possivel iniciar o login com Google.');
     }
 
-    const signInWithOAuthRedirect = async () => {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (error) throw error;
-    };
+    const width = 500;
+    const height = 680;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      popupUrl,
+      'google-oauth-popup',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`,
+    );
 
-    await loadGoogleIdentityScript();
-    const gsi = window.google?.accounts?.id;
-    if (!gsi) {
-      await signInWithOAuthRedirect();
+    if (!popup) {
+      // Fallback for browsers/devices that block popup windows.
+      const { error: redirectError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (redirectError) throw redirectError;
       return;
     }
 
-    const signInResult = await new Promise<GoogleSignInResult>((resolve, reject) => {
-      let finished = false;
+    await new Promise<void>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
-        if (finished) return;
-        finished = true;
+        window.clearInterval(checkClosedInterval);
         reject(new Error('Nao foi possivel concluir o login com Google. Tente novamente.'));
       }, 120000);
 
-      gsi.initialize({
-        client_id: googleClientId,
-        ux_mode: 'popup',
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        callback: (response) => {
-          if (finished) return;
-          finished = true;
-          window.clearTimeout(timeoutId);
-          if (!response.credential) {
-            reject(new Error('Nao foi possivel obter credencial do Google.'));
-            return;
-          }
-          resolve({ kind: 'id_token', token: response.credential });
-        },
-      });
-
-      gsi.prompt((notification) => {
-        if (finished) return;
-        if (notification?.isNotDisplayed?.()) {
-          finished = true;
-          window.clearTimeout(timeoutId);
-          resolve({ kind: 'fallback_redirect' });
-          return;
-        }
-        // Do not fail on "not displayed" or "skipped" moments because these
-        // can happen before a successful credential callback in some browsers.
-        if (notification?.isDismissedMoment?.()) {
-          finished = true;
-          window.clearTimeout(timeoutId);
-          reject(new Error('Login com Google cancelado.'));
-        }
-      });
+      const checkClosedInterval = window.setInterval(() => {
+        if (!popup.closed) return;
+        window.clearInterval(checkClosedInterval);
+        window.clearTimeout(timeoutId);
+        resolve();
+      }, 500);
     });
 
-    if (signInResult.kind === 'fallback_redirect') {
-      await signInWithOAuthRedirect();
-      return;
+    // Wait briefly for auth state sync after popup closes.
+    let sessionData = (await supabase.auth.getSession()).data;
+    if (!sessionData.session) {
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
+      sessionData = (await supabase.auth.getSession()).data;
     }
-
-    const { error } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token: signInResult.token,
-    });
-    if (error) throw error;
+    if (!sessionData.session) {
+      throw new Error('Login com Google cancelado.');
+    }
   };
 
   const signOut = async () => {

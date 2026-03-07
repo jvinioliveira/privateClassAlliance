@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import AuthPopupCallbackPage from "@/pages/AuthPopupCallbackPage";
 
 // Layouts
 import StudentLayout from "@/layouts/StudentLayout";
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
 
             {/* Student */}
             <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
