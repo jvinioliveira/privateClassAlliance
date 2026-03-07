@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/auth/popup-callback",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!.*\\.).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
