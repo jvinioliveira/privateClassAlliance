@@ -63,6 +63,7 @@ type SelectedPlanData = {
   month_ref: string;
   credits: number;
   price_cents: number;
+  selected_at: string;
   lesson_plans: { name: string; description: string | null } | null;
 };
 
@@ -166,7 +167,7 @@ const ruleItems: RuleItem[] = [
   {
     icon: CalendarClock,
     title: 'Validade dos pacotes',
-    description: 'Compras com 2 a 10 créditos valem 30 dias; acima de 10 créditos, 45 dias.',
+    description: 'Compras com 2 a 9 créditos valem 30 dias; a partir de 10 créditos, 45 dias.',
   },
   {
     icon: RefreshCcw,
@@ -193,6 +194,13 @@ const formatCurrencyBRL = (cents: number) =>
     maximumFractionDigits: 2,
   }).format(cents / 100);
 
+const formatDateBR = (date: Date) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+
 const getMonthBounds = (monthRef: string) => {
   const [year, month] = monthRef.split('-').map(Number);
   const nextYear = month === 12 ? year + 1 : year;
@@ -211,7 +219,7 @@ const clampCredits = (value: number) => {
 
 const getValidityDays = (credits: number) => {
   if (credits === 1) return 15;
-  if (credits > 10) return 45;
+  if (credits >= 10) return 45;
   return 30;
 };
 
@@ -291,12 +299,10 @@ const PlansPage = () => {
   const [customCredits, setCustomCredits] = useState(1);
   const [lastPurchase, setLastPurchase] = useState<PurchasePlanData | null>(null);
   const [highlightedPlanCredits, setHighlightedPlanCredits] = useState<number | null>(null);
-  const [monthInput, setMonthInput] = useState(() => {
+  const monthRef = useMemo(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-
-  const monthRef = `${monthInput}-01`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  }, []);
 
   const { data: dbPlans = [], isLoading } = useQuery({
     queryKey: ['student-lesson-plans'],
@@ -319,7 +325,7 @@ const PlansPage = () => {
 
       const { data, error } = await supabase
         .from('student_plan_selections')
-        .select('id, month_ref, credits, price_cents, plan_id, lesson_plans(name, description)')
+        .select('id, month_ref, credits, price_cents, plan_id, selected_at, lesson_plans(name, description)')
         .eq('student_id', user.id)
         .eq('month_ref', monthRef)
         .eq('status', 'active')
@@ -472,6 +478,22 @@ const PlansPage = () => {
   };
 
   const remaining = Math.max((credits?.monthly_limit || 0) - usedCredits, 0);
+  const creditExpiryInfo = useMemo(() => {
+    if (!selectedPlan?.selected_at) return null;
+
+    const purchasedAtMs = new Date(selectedPlan.selected_at).getTime();
+    if (!Number.isFinite(purchasedAtMs)) return null;
+
+    const validityDays = getValidityDays(selectedPlan.credits);
+    const expiresAt = new Date(purchasedAtMs + validityDays * 24 * 60 * 60 * 1000);
+    const diffMs = expiresAt.getTime() - Date.now();
+    const daysRemaining = Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
+
+    return {
+      daysRemaining,
+      expiresAtLabel: formatDateBR(expiresAt),
+    };
+  }, [selectedPlan]);
 
   const scrollToEquivalentPlan = (creditsToFocus: number) => {
     if (!selectedClassType) return;
@@ -491,20 +513,11 @@ const PlansPage = () => {
             <h1 className="font-display text-xl uppercase tracking-wider">Planos e créditos</h1>
             <p className="text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constância.</p>
           </div>
-          <div className="w-full sm:w-44">
-            <Label className="mb-1 block text-xs text-muted-foreground">Mês de referência</Label>
-            <Input
-              type="month"
-              value={monthInput}
-              onChange={(e) => setMonthInput(e.target.value)}
-              className="bg-background"
-            />
-          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">
-            Créditos: {usedCredits}/{credits?.monthly_limit || 0}
+            Créditos utilizados: {usedCredits}/{credits?.monthly_limit || 0}
           </Badge>
           <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
           {selectedPlan?.lesson_plans?.name && (
@@ -523,6 +536,17 @@ const PlansPage = () => {
             </p>
           </div>
         </div>
+        {creditExpiryInfo && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-sm font-medium text-foreground">
+              Seus créditos atuais expiram em {creditExpiryInfo.daysRemaining} dia
+              {creditExpiryInfo.daysRemaining === 1 ? '' : 's'} ({creditExpiryInfo.expiresAtLabel}).
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cada compra tem validade própria a partir da data da compra. Novos créditos não acumulam prazo aos anteriores.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {ruleItems.map((rule) => (
             <div key={rule.title} className="rounded-lg border border-border/70 bg-background/50 p-3">
@@ -537,7 +561,6 @@ const PlansPage = () => {
           ))}
         </div>
       </div>
-
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="space-y-1">
           <h2 className="font-display text-base uppercase tracking-wider">Escolha o tipo de aula</h2>
@@ -912,3 +935,4 @@ const PlansPage = () => {
 };
 
 export default PlansPage;
+
