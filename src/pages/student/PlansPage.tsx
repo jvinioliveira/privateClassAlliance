@@ -117,7 +117,7 @@ const fixedIndividualPlans: FixedPlan[] = [
 const fixedDoublePlans: FixedPlan[] = [
   {
     name: 'Aula Dupla Avulsa',
-    description: 'Treine com um parceiro e divida a experiencia em uma aula dinamica.',
+    description: 'Treine com um parceiro e divida a experiência em uma aula dinâmica.',
     credits: 1,
     totalPriceCents: 16000,
     validityDays: 15,
@@ -170,7 +170,7 @@ const ruleItems: RuleItem[] = [
   },
   {
     icon: RefreshCcw,
-    title: 'Remarcacao',
+    title: 'Remarcação',
     description: 'Permitido remarcar a aula com até 24h de antecedência.',
   },
   {
@@ -180,8 +180,8 @@ const ruleItems: RuleItem[] = [
   },
   {
     icon: Dumbbell,
-    title: 'Duracao da aula',
-    description: 'Duracao media das aulas: 50 minutos.',
+    title: 'Duração da aula',
+    description: 'Duração média das aulas: 50 minutos.',
   },
 ];
 
@@ -625,7 +625,7 @@ const PlansPage = () => {
                       isHighlighted ? 'bg-gradient-to-b from-primary/10 via-card to-card' : 'bg-gradient-to-b from-background/60 to-card'
                     } ${isMainChosen && slideState.isActive ? 'lg:scale-[1.02]' : ''}`}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex h-full flex-col gap-3">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-base font-medium text-foreground">{plan.name}</p>
@@ -693,7 +693,7 @@ const PlansPage = () => {
                       <Button
                         onClick={() => handlePurchase(purchaseData, dbPlan?.id)}
                         disabled={isApplying || isSelected || (cannotApply && !!dbPlan)}
-                        className="w-full font-display uppercase tracking-wider sm:w-auto"
+                        className="mt-auto w-full font-display uppercase tracking-wider"
                       >
                         {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Comprar créditos'}
                       </Button>
