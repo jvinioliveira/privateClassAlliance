@@ -11,7 +11,7 @@ import {
   Clock,
   LogOut,
   Pencil,
-  RefreshCcw,
+  Settings,
   UserCircle,
   WalletCards,
 } from 'lucide-react';
@@ -73,10 +73,10 @@ const profileSections: ProfileSection[] = [
   { value: 'account', label: 'Minha conta', icon: UserCircle },
   { value: 'bookings', label: 'Meus agendamentos', icon: CalendarClock, studentOnly: true },
   { value: 'completed', label: 'Aulas realizadas', icon: CheckCircle2, studentOnly: true },
+  { value: 'password', label: 'Redefinir senha', icon: Pencil },
   { value: 'credits', label: 'Meus creditos', icon: WalletCards, studentOnly: true },
   { value: 'faq', label: 'Duvidas', icon: AlertCircle },
-  { value: 'settings', label: 'Configuracoes', icon: RefreshCcw },
-  { value: 'password', label: 'Redefinir senha', icon: Pencil },
+  { value: 'settings', label: 'Configuracoes', icon: Settings },
 ];
 
 const sectionTitle: Record<ProfileSectionKey, string> = {
