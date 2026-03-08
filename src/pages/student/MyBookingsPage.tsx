@@ -43,8 +43,9 @@ const MyBookingsPage = () => {
 
   const cancelMutation = useMutation({
     mutationFn: (bookingId: string) => cancelBooking(bookingId),
-    onSuccess: () => {
-      toast.success('Aula cancelada');
+    onSuccess: (result) => {
+      const warningMessage = result?.warning_message?.trim();
+      toast.success(warningMessage ? `Aula cancelada. ${warningMessage}` : 'Aula cancelada');
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
       queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });

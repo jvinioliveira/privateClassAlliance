@@ -126,7 +126,8 @@ const CalendarPage = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [bookingType, setBookingType] = useState<1 | 2>(1);
-  const [partnerName, setPartnerName] = useState('');
+  const [partnerFirstName, setPartnerFirstName] = useState('');
+  const [partnerLastName, setPartnerLastName] = useState('');
 
   const { data: creditSummary } = useQuery<StudentCreditSummary>({
     queryKey: ['credit-summary', user?.id],
@@ -235,8 +236,17 @@ const CalendarPage = () => {
   };
 
   const bookMutation = useMutation({
-    mutationFn: ({ slotId, seats, partner }: { slotId: string; seats: number; partner?: string | null }) =>
-      bookSlot(slotId, seats, partner),
+    mutationFn: ({
+      slotId,
+      seats,
+      partnerFirst,
+      partnerLast,
+    }: {
+      slotId: string;
+      seats: number;
+      partnerFirst?: string | null;
+      partnerLast?: string | null;
+    }) => bookSlot(slotId, seats, partnerFirst, partnerLast),
     onSuccess: () => {
       toast.success('Aula agendada com sucesso!');
       setSelectedSlot(null);
@@ -269,7 +279,8 @@ const CalendarPage = () => {
     const { slot, freeSeats, isMine, isFull } = info.event.extendedProps;
     setSelectedSlot({ ...slot, freeSeats, isMine, isFull });
     setBookingType(1);
-    setPartnerName('');
+    setPartnerFirstName('');
+    setPartnerLastName('');
   };
 
   const handleDatesSet = (dateInfo: DatesSetArg) => {
@@ -296,7 +307,7 @@ const CalendarPage = () => {
   const totalCredits = creditSummary?.totalCredits ?? 0;
   const remaining = creditSummary?.remainingCredits ?? 0;
   const isPartnerRequired = bookingType === 2;
-  const isPartnerMissing = isPartnerRequired && !partnerName.trim();
+  const isPartnerMissing = isPartnerRequired && (!partnerFirstName.trim() || !partnerLastName.trim());
 
   return (
     <div className="space-y-4 p-4">
@@ -368,7 +379,8 @@ const CalendarPage = () => {
         open={!!selectedSlot}
         onOpenChange={() => {
           setSelectedSlot(null);
-          setPartnerName('');
+          setPartnerFirstName('');
+          setPartnerLastName('');
         }}
       >
         <DialogContent className="max-h-[85dvh] overflow-y-auto bg-card border-border sm:max-w-md">
@@ -428,7 +440,8 @@ const CalendarPage = () => {
                       <button
                         onClick={() => {
                           setBookingType(1);
-                          setPartnerName('');
+                          setPartnerFirstName('');
+                          setPartnerLastName('');
                         }}
                         className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
                           bookingType === 1
@@ -457,17 +470,26 @@ const CalendarPage = () => {
                     {bookingType === 2 && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">
-                          Dupla ocupa 2 vagas e usa credito de aula em dupla.
+                          Dupla ocupa 2 vagas, usa credito em dupla e o parceiro deve ser aluno da Alliance Sao Jose dos Pinhais.
                         </p>
-                        <Input
-                          value={partnerName}
-                          onChange={(event) => setPartnerName(event.target.value)}
-                          maxLength={80}
-                          placeholder="Nome da segunda pessoa"
-                          className="bg-background"
-                        />
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Input
+                            value={partnerFirstName}
+                            onChange={(event) => setPartnerFirstName(event.target.value)}
+                            placeholder="Nome do parceiro"
+                            className="bg-background"
+                            maxLength={80}
+                          />
+                          <Input
+                            value={partnerLastName}
+                            onChange={(event) => setPartnerLastName(event.target.value)}
+                            placeholder="Sobrenome do parceiro"
+                            className="bg-background"
+                            maxLength={120}
+                          />
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Obrigatorio para confirmar aula em dupla.
+                          Informe nome e sobrenome para validar o aluno parceiro.
                         </p>
                       </div>
                     )}
@@ -476,14 +498,15 @@ const CalendarPage = () => {
                   <Button
                     onClick={() => {
                       if (isPartnerMissing) {
-                        toast.error('Informe o nome da segunda pessoa para agendar em dupla.');
+                        toast.error('Informe nome e sobrenome do segundo aluno para agendar em dupla.');
                         return;
                       }
 
                       bookMutation.mutate({
                         slotId: selectedSlot.id,
                         seats: bookingType,
-                        partner: bookingType === 2 ? partnerName.trim() : null,
+                        partnerFirst: bookingType === 2 ? partnerFirstName.trim() : null,
+                        partnerLast: bookingType === 2 ? partnerLastName.trim() : null,
                       });
                     }}
                     disabled={bookMutation.isPending || isPartnerMissing}

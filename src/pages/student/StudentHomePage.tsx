@@ -28,7 +28,7 @@ import type {
 
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
-type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row'];
 type BookingWithSlot = BookingRow & { slot: SlotRow | null };
 type BookingWithSlotRelation = BookingRow & { availability_slots: SlotRow | null };
 
@@ -177,17 +177,17 @@ const StudentHomePage = () => {
     enabled: !!user,
   });
 
-  const notificationsQuery = useQuery<NotificationRow[]>({
-    queryKey: ['student-home', 'notifications', user?.id],
+  const coachMessagesQuery = useQuery<DirectMessageRow[]>({
+    queryKey: ['student-home', 'coach-messages', user?.id],
     queryFn: async () => {
       if (!user) return [];
 
       const { data, error } = await supabase
-        .from('notifications')
+        .from('direct_messages')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(50);
 
       if (error) throw error;
       return data ?? [];
@@ -197,8 +197,9 @@ const StudentHomePage = () => {
 
   const cancelMutation = useMutation({
     mutationFn: (bookingId: string) => cancelBooking(bookingId),
-    onSuccess: () => {
-      toast.success('Aula cancelada com sucesso.');
+    onSuccess: (result) => {
+      const warningMessage = result?.warning_message?.trim();
+      toast.success(warningMessage ? `Aula cancelada. ${warningMessage}` : 'Aula cancelada com sucesso.');
       queryClient.invalidateQueries({ queryKey: ['student-home'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
@@ -300,26 +301,11 @@ const StudentHomePage = () => {
   }, [bookings, monthRef, monthlyLimit]);
 
   const coachMessage = useMemo<CoachMessageSummary | null>(() => {
-    const list = notificationsQuery.data ?? [];
-    const preferredTypes = new Set([
-      'bulk_booking',
-      'booking_rescheduled',
-      'booking_confirmed',
-      'booking_cancelled',
-    ]);
-
-    const preferred = list.find((item) => (item.message || '').trim() && preferredTypes.has(item.type ?? ''));
-    const fallback = list.find((item) => {
-      const type = item.type ?? '';
-      const hasMessage = (item.message || '').trim().length > 0;
-      return hasMessage && !type.startsWith('plan_');
-    });
-
-    const selected = preferred ?? fallback;
+    const selected = (coachMessagesQuery.data ?? []).find((item) => (item.message || '').trim().length > 0);
     if (!selected?.message) return null;
 
     return {
-      title: (selected.title || 'Mensagem do professor').trim(),
+      title: 'Mensagem do professor',
       content: selected.message,
       createdAtLabel: new Date(selected.created_at).toLocaleDateString('pt-BR', {
         day: '2-digit',
@@ -327,7 +313,7 @@ const StudentHomePage = () => {
         timeZone: 'America/Sao_Paulo',
       }),
     };
-  }, [notificationsQuery.data]);
+  }, [coachMessagesQuery.data]);
 
   const subtitle = nextClass
     ? 'Veja sua próxima aula e agende com facilidade.'
@@ -412,9 +398,10 @@ const StudentHomePage = () => {
 
         <motion.div variants={sectionVariants}>
           <CoachMessageCard
-            loading={notificationsQuery.isLoading}
-            hasError={notificationsQuery.isError}
+            loading={coachMessagesQuery.isLoading}
+            hasError={coachMessagesQuery.isError}
             message={coachMessage}
+            onOpenInbox={() => navigate('/notifications')}
           />
         </motion.div>
       </motion.div>

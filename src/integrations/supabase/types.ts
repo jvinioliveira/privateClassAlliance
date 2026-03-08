@@ -64,6 +64,7 @@ export type Database = {
           created_by_admin: boolean
           id: string
           partner_name: string | null
+          partner_student_id: string | null
           seats_reserved: number
           slot_id: string
           status: string
@@ -78,6 +79,7 @@ export type Database = {
           created_by_admin?: boolean
           id?: string
           partner_name?: string | null
+          partner_student_id?: string | null
           seats_reserved: number
           slot_id: string
           status?: string
@@ -92,6 +94,7 @@ export type Database = {
           created_by_admin?: boolean
           id?: string
           partner_name?: string | null
+          partner_student_id?: string | null
           seats_reserved?: number
           slot_id?: string
           status?: string
@@ -99,6 +102,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_partner_student_id_fkey"
+            columns: ["partner_student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_slot_id_fkey"
             columns: ["slot_id"]
@@ -109,6 +119,51 @@ export type Database = {
           {
             foreignKeyName: "bookings_student_id_fkey"
             columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey"
+            columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -311,6 +366,47 @@ export type Database = {
           },
         ]
       }
+      student_feedback_submissions: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          message: string
+          status: string
+          student_id: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          message: string
+          status?: string
+          student_id: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          status?: string
+          student_id?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_feedback_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waitlist: {
         Row: {
           created_at: string
@@ -377,14 +473,19 @@ export type Database = {
         Returns: undefined
       }
       book_slot: {
-        Args: { p_partner_name?: string | null; p_seats_reserved: number; p_slot_id: string }
+        Args: {
+          p_partner_first_name?: string | null
+          p_partner_last_name?: string | null
+          p_seats_reserved: number
+          p_slot_id: string
+        }
         Returns: string
       }
       choose_plan: {
         Args: { p_month_ref?: string; p_plan_id: string }
         Returns: string
       }
-      cancel_booking: { Args: { p_booking_id: string }; Returns: undefined }
+      cancel_booking: { Args: { p_booking_id: string }; Returns: Json }
       get_month_ref: { Args: { ts: string }; Returns: string }
       get_month_report: { Args: { p_month_ref: string }; Returns: Json }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
@@ -394,6 +495,15 @@ export type Database = {
       reschedule_booking: {
         Args: { p_booking_id: string; p_new_slot_id: string }
         Returns: undefined
+      }
+      send_message_to_admins: { Args: { p_message: string }; Returns: number }
+      send_message_to_student: {
+        Args: { p_message: string; p_student_id: string }
+        Returns: string
+      }
+      submit_student_feedback: {
+        Args: { p_category: string; p_message: string; p_subject: string | null }
+        Returns: string
       }
       waitlist_accept: { Args: { p_waitlist_id: string }; Returns: string }
       waitlist_join: { Args: { p_slot_id: string }; Returns: string }

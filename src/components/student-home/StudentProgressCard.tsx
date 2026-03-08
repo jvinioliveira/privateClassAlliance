@@ -32,7 +32,7 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const weekLabels = ['Sem -3', 'Sem -2', 'Sem -1', 'Atual'];
+const weekLabels = ['Há 3 semanas', 'Há 2 semanas', 'Há 1 semana', 'Esta semana'];
 
 const StudentProgressCard = ({ loading, hasError, stats }: StudentProgressCardProps) => {
   const monthRatio = stats.monthlyLimit > 0 ? stats.completedThisMonth / stats.monthlyLimit : 0;

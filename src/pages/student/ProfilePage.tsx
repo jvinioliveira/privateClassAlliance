@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock,
   LogOut,
+  MessageSquareWarning,
   Pencil,
   ReceiptText,
   Settings,
@@ -20,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +38,7 @@ import { toast } from 'sonner';
 
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type FeedbackRow = Database['public']['Tables']['student_feedback_submissions']['Row'];
 type BookingWithSlot = BookingRow & { slot: SlotRow | null };
 
 type ProfileSectionKey =
@@ -44,6 +47,7 @@ type ProfileSectionKey =
   | 'completed'
   | 'credits'
   | 'purchase_history'
+  | 'feedback'
   | 'faq'
   | 'settings'
   | 'password';
@@ -79,10 +83,11 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
 const profileSections: ProfileSection[] = [
   { value: 'account', label: 'Minha conta', icon: UserCircle },
   { value: 'bookings', label: 'Meus agendamentos', icon: CalendarClock, studentOnly: true },
+  { value: 'completed', label: 'Aulas realizadas', icon: CheckCircle2, studentOnly: true },
   { value: 'purchase_history', label: 'Histórico de compras', icon: ReceiptText, studentOnly: true },
   { value: 'credits', label: 'Meus créditos', icon: WalletCards, studentOnly: true },
-  { value: 'completed', label: 'Aulas realizadas', icon: CheckCircle2, studentOnly: true },
   { value: 'password', label: 'Redefinir senha', icon: Pencil },
+  { value: 'feedback', label: 'Feedback e bugs', icon: MessageSquareWarning, studentOnly: true },
   { value: 'faq', label: 'Dúvidas frequentes', icon: AlertCircle },
   { value: 'settings', label: 'Configurações', icon: Settings },
 ];
@@ -93,6 +98,7 @@ const sectionTitle: Record<ProfileSectionKey, string> = {
   completed: 'Aulas realizadas',
   credits: 'Meus créditos',
   purchase_history: 'Histórico de compras',
+  feedback: 'Feedback e bugs',
   faq: 'Dúvidas frequentes',
   settings: 'Configurações',
   password: 'Redefinir senha',
@@ -215,10 +221,35 @@ const ProfilePage = () => {
     enabled: !!user && isStudent,
   });
 
+  const [feedbackCategory, setFeedbackCategory] = useState<
+    'complaint' | 'compliment' | 'suggestion' | 'other' | 'bug'
+  >(
+    'suggestion',
+  );
+  const [feedbackSubject, setFeedbackSubject] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+
+  const { data: feedbackHistory = [], isLoading: loadingFeedbackHistory } = useQuery<FeedbackRow[]>({
+    queryKey: ['student-feedback-history', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('student_feedback_submissions')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as FeedbackRow[];
+    },
+    enabled: !!user && isStudent,
+  });
+
   const cancelMutation = useMutation({
     mutationFn: (bookingId: string) => cancelBooking(bookingId),
-    onSuccess: () => {
-      toast.success('Agendamento cancelado');
+    onSuccess: (result) => {
+      const warningMessage = result?.warning_message?.trim();
+      toast.success(warningMessage ? `Agendamento cancelado. ${warningMessage}` : 'Agendamento cancelado');
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
       queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
@@ -226,6 +257,34 @@ const ProfilePage = () => {
     },
     onError: (err: unknown) => {
       toast.error(getErrorMessage(err, 'Erro ao cancelar agendamento'));
+    },
+  });
+
+  const submitFeedbackMutation = useMutation({
+    mutationFn: async () => {
+      const cleanedMessage = feedbackMessage.trim();
+      if (!cleanedMessage) {
+        throw new Error('Digite a mensagem do feedback.');
+      }
+
+      const { data, error } = await supabase.rpc('submit_student_feedback', {
+        p_category: feedbackCategory,
+        p_subject: feedbackSubject.trim() || null,
+        p_message: cleanedMessage,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      setFeedbackSubject('');
+      setFeedbackMessage('');
+      setFeedbackCategory('suggestion');
+      toast.success('Feedback enviado com sucesso.');
+      queryClient.invalidateQueries({ queryKey: ['student-feedback-history'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+    onError: (err: unknown) => {
+      toast.error(getErrorMessage(err, 'Erro ao enviar feedback'));
     },
   });
 
@@ -742,6 +801,89 @@ const ProfilePage = () => {
       );
     }
 
+    if (activeSection === 'feedback' && isStudent) {
+      return (
+        <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+          <div className="space-y-2">
+            <Label htmlFor="feedbackCategory">Tipo</Label>
+            <select
+              id="feedbackCategory"
+              value={feedbackCategory}
+              onChange={(event) =>
+                setFeedbackCategory(
+                  event.target.value as 'complaint' | 'compliment' | 'suggestion' | 'other' | 'bug',
+                )
+              }
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="suggestion">Sugestão</option>
+              <option value="complaint">Reclamação</option>
+              <option value="compliment">Elogio</option>
+              <option value="other">Outro</option>
+              <option value="bug">Relatar erro/bug no site</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="feedbackSubject">Assunto (opcional)</Label>
+            <Input
+              id="feedbackSubject"
+              value={feedbackSubject}
+              onChange={(event) => setFeedbackSubject(event.target.value)}
+              className="border-border bg-background"
+              maxLength={120}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="feedbackMessage">Mensagem</Label>
+            <Textarea
+              id="feedbackMessage"
+              value={feedbackMessage}
+              onChange={(event) => setFeedbackMessage(event.target.value)}
+              className="min-h-32 border-border bg-background"
+              placeholder="Descreva sua sugestão, elogio ou reclamação com detalhes. Se for relatar um erro, informe o que você estava fazendo, o que aconteceu e, se possível, o modelo do seu dispositivo e navegador."
+              maxLength={2000}
+            />
+          </div>
+
+          <Button
+            onClick={() => submitFeedbackMutation.mutate()}
+            disabled={submitFeedbackMutation.isPending}
+            className="w-full font-display uppercase tracking-wider"
+          >
+            {submitFeedbackMutation.isPending ? 'Enviando...' : 'Enviar feedback'}
+          </Button>
+
+          <div className="space-y-2 pt-2">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Historico recente</p>
+            {loadingFeedbackHistory ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : feedbackHistory.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-center text-sm text-muted-foreground">
+                Nenhum feedback enviado ainda.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {feedbackHistory.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{item.category}</Badge>
+                      <Badge variant="secondary">{item.status}</Badge>
+                    </div>
+                    {item.subject && <p className="mt-2 text-sm font-medium text-foreground">{item.subject}</p>}
+                    <p className="mt-1 text-sm text-muted-foreground">{item.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (activeSection === 'faq') {
       return (
         <div className="rounded-xl border border-border bg-card p-5">
@@ -964,5 +1106,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-
-

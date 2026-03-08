@@ -22,6 +22,7 @@ export interface Booking {
   status: 'booked' | 'cancelled' | 'completed' | 'no_show';
   seats_reserved: number;
   partner_name?: string | null;
+  partner_student_id?: string | null;
   created_by_admin: boolean;
   attendance_status: 'pending' | 'present' | 'absent';
   checked_in_at: string | null;
@@ -61,6 +62,12 @@ export interface Notification {
   read: boolean;
   created_at: string;
 }
+
+export type CancelBookingResult = {
+  cancelled: boolean;
+  remaining_rebook_attempts: number | null;
+  warning_message: string | null;
+};
 
 type ProfileBasic = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'>;
 type BookingWithProfile = Database['public']['Tables']['bookings']['Row'] & {
@@ -207,11 +214,17 @@ export const useNotifications = () => {
 };
 
 // RPC calls
-export const bookSlot = async (slotId: string, seatsReserved: number, partnerName?: string | null) => {
+export const bookSlot = async (
+  slotId: string,
+  seatsReserved: number,
+  partnerFirstName?: string | null,
+  partnerLastName?: string | null,
+) => {
   const { data, error } = await supabase.rpc('book_slot', {
     p_slot_id: slotId,
     p_seats_reserved: seatsReserved,
-    p_partner_name: partnerName ?? null,
+    p_partner_first_name: partnerFirstName ?? null,
+    p_partner_last_name: partnerLastName ?? null,
   });
   if (error) throw error;
   return data;
@@ -222,7 +235,7 @@ export const cancelBooking = async (bookingId: string) => {
     p_booking_id: bookingId,
   });
   if (error) throw error;
-  return data;
+  return (data ?? null) as CancelBookingResult | null;
 };
 
 export const rescheduleBooking = async (bookingId: string, newSlotId: string) => {
