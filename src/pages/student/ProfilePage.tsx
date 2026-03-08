@@ -76,7 +76,7 @@ const ProfilePage = () => {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no maximo 5MB.');
+      toast.error('A imagem deve ter no máximo 5MB.');
       return;
     }
 
@@ -141,12 +141,12 @@ const ProfilePage = () => {
 
   const handleUpdatePassword = async () => {
     if (newPassword.length < 6) {
-      toast.error('Senha deve ter no minimo 6 caracteres');
+      toast.error('Senha deve ter no mínimo 6 caracteres');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('As senhas nao coincidem');
+      toast.error('As senhas não coincidem');
       return;
     }
 
@@ -301,7 +301,7 @@ const ProfilePage = () => {
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Minimo 6 caracteres"
+            placeholder="Mínimo 6 caracteres"
             minLength={6}
             className="border-border bg-background"
           />

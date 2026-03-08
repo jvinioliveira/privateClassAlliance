@@ -47,7 +47,7 @@ const ResetPasswordPage = () => {
     try {
       await resetPassword(email);
       setEmailSent(true);
-      toast.success('Email de recuperacao enviado!');
+      toast.success('Email de recuperação enviado!');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar email';
       toast.error(message);
@@ -59,7 +59,7 @@ const ResetPasswordPage = () => {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
-      toast.error('Senha deve ter no minimo 6 caracteres');
+      toast.error('Senha deve ter no mínimo 6 caracteres');
       return;
     }
 
@@ -98,7 +98,7 @@ const ResetPasswordPage = () => {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Minimo 6 caracteres"
+                placeholder="Mínimo 6 caracteres"
                 minLength={6}
                 required
                 className="bg-card border-border"
@@ -111,7 +111,7 @@ const ResetPasswordPage = () => {
         ) : emailSent ? (
           <div className="space-y-4 text-center">
             <p className="text-muted-foreground">
-              Enviamos um link de recuperacao para <strong className="text-foreground">{email}</strong>
+              Enviamos um link de recuperação para <strong className="text-foreground">{email}</strong>
             </p>
             <Link to="/login">
               <Button variant="outline" className="w-full font-display uppercase tracking-wider">
@@ -134,7 +134,7 @@ const ResetPasswordPage = () => {
               />
             </div>
             <Button type="submit" className="w-full font-display uppercase tracking-wider" disabled={loading}>
-              {loading ? 'Enviando...' : 'Enviar link de recuperacao'}
+              {loading ? 'Enviando...' : 'Enviar link de recuperação'}
             </Button>
           </form>
         )}

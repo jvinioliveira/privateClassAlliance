@@ -87,13 +87,13 @@ const AdminPlansPage = () => {
 
       if (!name.trim()) throw new Error('Informe o nome do plano.');
       if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-        throw new Error('Valor invalido.');
+        throw new Error('Valor inválido.');
       }
       if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
-        throw new Error('Creditos devem ser inteiros e maiores que zero.');
+        throw new Error('Créditos devem ser inteiros e maiores que zero.');
       }
       if (!Number.isFinite(parsedSortOrder)) {
-        throw new Error('Ordem invalida.');
+        throw new Error('Ordem inválida.');
       }
 
       const payload = {
@@ -190,7 +190,7 @@ const AdminPlansPage = () => {
               </div>
 
               <div className="space-y-1">
-                <Label>Descricao</Label>
+                <Label>Descrição</Label>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -201,7 +201,7 @@ const AdminPlansPage = () => {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label>Creditos</Label>
+                  <Label>Créditos</Label>
                   <Input
                     type="number"
                     min={1}
@@ -252,7 +252,7 @@ const AdminPlansPage = () => {
                 disabled={saveMutation.isPending}
                 className="w-full font-display uppercase tracking-wider"
               >
-                {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alteracoes' : 'Criar plano'}
+                {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alterações' : 'Criar plano'}
               </Button>
             </div>
           </DialogContent>
@@ -278,7 +278,7 @@ const AdminPlansPage = () => {
                     <Badge variant={plan.is_active ? 'default' : 'outline'}>
                       {plan.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
-                    <Badge variant="secondary">{plan.credits} creditos</Badge>
+                    <Badge variant="secondary">{plan.credits} créditos</Badge>
                   </div>
                   {plan.description && (
                     <p className="text-sm text-muted-foreground">{plan.description}</p>

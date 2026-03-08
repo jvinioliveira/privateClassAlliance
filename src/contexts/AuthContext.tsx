@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const popupUrl = data?.url;
     if (!popupUrl) {
-      throw new Error('Nao foi possivel iniciar o login com Google.');
+      throw new Error('Não foi possível iniciar o login com Google.');
     }
 
     const width = 500;
@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise<void>((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
         window.clearInterval(checkClosedInterval);
-        reject(new Error('Nao foi possivel concluir o login com Google. Tente novamente.'));
+        reject(new Error('Não foi possível concluir o login com Google. Tente novamente.'));
       }, 120000);
 
       const checkClosedInterval = window.setInterval(() => {
