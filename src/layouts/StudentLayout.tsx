@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, BookOpen, Bell, UserCircle, WalletCards } from 'lucide-react';
+import { Calendar, Bell, UserCircle, WalletCards } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
@@ -28,7 +28,6 @@ const StudentLayout = () => {
 
   const studentNavItems = [
     { to: '/calendar', icon: Calendar, label: 'Agenda' },
-    { to: '/my-bookings', icon: BookOpen, label: 'Aulas' },
     { to: '/plans', icon: WalletCards, label: 'Planos' },
     { to: '/notifications', icon: Bell, label: 'Avisos', badgeCount: unreadCount },
     { to: '/profile', icon: UserCircle, label: 'Perfil' },
@@ -36,7 +35,6 @@ const StudentLayout = () => {
 
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col bg-background pb-20">
-      {/* Top header - mobile */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-lg">
         <Logo size="sm" />
         <span className="text-xs font-medium text-muted-foreground">
