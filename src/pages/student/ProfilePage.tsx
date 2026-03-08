@@ -147,6 +147,15 @@ const formatBookingDateTime = (isoDate: string) => {
   return `${day} as ${hour}`;
 };
 
+const ALLOWED_AVATAR_MIME_TYPES = new Set(['image/jpeg', 'image/jpg']);
+
+const isJpegFile = (file: File) => {
+  const mime = file.type?.toLowerCase() ?? '';
+  if (ALLOWED_AVATAR_MIME_TYPES.has(mime)) return true;
+  const lowerName = file.name.toLowerCase();
+  return lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg');
+};
+
 const ProfilePage = () => {
   const { profile, signOut, user, updatePassword, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -342,8 +351,9 @@ const ProfilePage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Selecione um arquivo de imagem.');
+    if (!isJpegFile(file)) {
+      toast.error('Selecione uma imagem JPG/JPEG da galeria.');
+      event.target.value = '';
       return;
     }
 
@@ -374,11 +384,14 @@ const ProfilePage = () => {
       let nextAvatarUrl = removeAvatar ? null : profile?.avatar_url || null;
 
       if (avatarFile) {
-        const fileExtension = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const filePath = `${user.id}/avatar.${fileExtension}`;
+        const filePath = `${user.id}/avatar-${Date.now()}.jpg`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, avatarFile, { upsert: true });
+          .upload(filePath, avatarFile, {
+            upsert: false,
+            contentType: 'image/jpeg',
+            cacheControl: '3600',
+          });
 
         if (uploadError) throw uploadError;
 
@@ -399,11 +412,16 @@ const ProfilePage = () => {
 
       if (error) throw error;
 
-      await refreshProfile();
-      setIsEditingPhone(!(phone.trim()));
-      toast.success('Perfil atualizado');
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Erro ao salvar perfil'));
+	      await refreshProfile();
+	      setIsEditingPhone(!(phone.trim()));
+        setAvatarFile(null);
+        setRemoveAvatar(false);
+        if (avatarInputRef.current) {
+          avatarInputRef.current.value = '';
+        }
+	      toast.success('Perfil atualizado');
+	    } catch (err: unknown) {
+	      toast.error(getErrorMessage(err, 'Erro ao salvar perfil'));
     } finally {
       setSavingProfile(false);
     }
@@ -501,12 +519,35 @@ const ProfilePage = () => {
   const renderSection = () => {
     if (!activeSection) return null;
 
-    if (activeSection === 'account') {
-      return (
-        <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+	    if (activeSection === 'account') {
+	      return (
+	        <div className="space-y-4 rounded-xl border border-border bg-card p-5">
           <div className="space-y-2">
-            <Label htmlFor="firstName">Nome</Label>
-            <Input
+            <Label htmlFor="avatarFile">Foto de perfil</Label>
+            <input
+              ref={avatarInputRef}
+              id="avatarFile"
+              type="file"
+              accept="image/jpeg,image/jpg"
+              onChange={handleAvatarFileChange}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => avatarInputRef.current?.click()}
+              className="w-full"
+            >
+              Escolher foto (JPG)
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Formato permitido: JPG/JPEG ate 5MB.
+            </p>
+          </div>
+
+	          <div className="space-y-2">
+	            <Label htmlFor="firstName">Nome</Label>
+	            <Input
               id="firstName"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
@@ -1014,37 +1055,18 @@ const ProfilePage = () => {
     <div className="space-y-5 p-4">
       <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Perfil</h1>
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="relative">
-              <input
-                ref={avatarInputRef}
-                id="avatarFile"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarFileChange}
-                className="hidden"
-              />
-
-              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary/10">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="Foto de perfil" className="h-full w-full object-cover" />
-                ) : (
-                  <UserCircle className="h-7 w-7 text-primary" />
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground"
-                aria-label="Alterar foto"
-                title="Alterar foto"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            </div>
+	      <div className="rounded-2xl border border-border bg-card p-4">
+	        <div className="flex items-center justify-between gap-3">
+	          <div className="flex min-w-0 items-center gap-3">
+	            <div className="relative">
+	              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-primary/10">
+	                {avatarPreview ? (
+	                  <img src={avatarPreview} alt="Foto de perfil" className="h-full w-full object-cover" />
+	                ) : (
+	                  <UserCircle className="h-7 w-7 text-primary" />
+	                )}
+	              </div>
+	            </div>
 
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">{displayName}</p>
