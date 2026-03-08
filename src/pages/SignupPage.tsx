@@ -33,7 +33,8 @@ const SignupPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,7 +53,7 @@ const SignupPage = () => {
     }
 
     try {
-      await signUp(email, password, fullName);
+      await signUp(email, password, firstName, lastName);
       setSuccess(true);
       toast.success('Conta criada! Verifique seu email para confirmar.');
     } catch (err: unknown) {
@@ -109,13 +110,23 @@ const SignupPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="fullName">Nome completo</Label>
+            <Label htmlFor="firstName">Nome</Label>
             <Input
-              id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              id="firstName"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
               placeholder="Seu nome"
               required
+              className="bg-card border-border"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Sobrenome</Label>
+            <Input
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Seu sobrenome"
               className="bg-card border-border"
             />
           </div>

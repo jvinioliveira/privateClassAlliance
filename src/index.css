@@ -110,6 +110,14 @@
     flex-wrap: wrap;
     gap: 0.25rem;
   }
+
+  /* Keep month/week/day controls subtle below month title on mobile */
+  .fc .fc-toolbar-chunk:last-child .fc-button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    opacity: 0.9;
+  }
 }
 
 .fc .fc-col-header-cell-cushion,

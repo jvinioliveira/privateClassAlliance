@@ -15,6 +15,16 @@ const formatPhoneBR = (input: string) => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 };
 
+const splitFullName = (fullName: string) => {
+  const normalized = fullName.trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return { firstName: '', lastName: '' };
+  }
+
+  const [firstName, ...rest] = normalized.split(' ');
+  return { firstName: firstName ?? '', lastName: rest.join(' ') };
+};
+
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) return error.message;
   return fallback;
@@ -22,7 +32,8 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 const ProfilePage = () => {
   const { profile, signOut, user, updatePassword, refreshProfile } = useAuth();
-  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [firstName, setFirstName] = useState(profile?.first_name || '');
+  const [lastName, setLastName] = useState(profile?.last_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [isEditingPhone, setIsEditingPhone] = useState(!(profile?.phone || '').trim());
   const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || '');
@@ -36,14 +47,16 @@ const ProfilePage = () => {
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
-    setFullName(profile?.full_name || '');
+    const parsedName = splitFullName(profile?.full_name || '');
+    setFirstName((profile?.first_name || parsedName.firstName).trim());
+    setLastName((profile?.last_name || parsedName.lastName).trim());
     const initialPhone = profile?.phone || '';
     setPhone(formatPhoneBR(initialPhone));
     setIsEditingPhone(!initialPhone.trim());
     setAvatarPreview(profile?.avatar_url || '');
     setAvatarFile(null);
     setRemoveAvatar(false);
-  }, [profile?.full_name, profile?.phone, profile?.avatar_url, profile?.id]);
+  }, [profile?.first_name, profile?.last_name, profile?.full_name, profile?.phone, profile?.avatar_url, profile?.id]);
 
   useEffect(() => {
     return () => {
@@ -82,6 +95,9 @@ const ProfilePage = () => {
     if (!user) return;
     setSavingProfile(true);
     try {
+      const normalizedFirstName = firstName.trim();
+      const normalizedLastName = lastName.trim();
+      const combinedFullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
       let nextAvatarUrl = removeAvatar ? null : profile?.avatar_url || null;
 
       if (avatarFile) {
@@ -100,7 +116,9 @@ const ProfilePage = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName.trim() || null,
+          full_name: combinedFullName || null,
+          first_name: normalizedFirstName || null,
+          last_name: normalizedLastName || null,
           phone: phone.trim() || null,
           avatar_url: nextAvatarUrl,
         })
@@ -116,6 +134,10 @@ const ProfilePage = () => {
       setSavingProfile(false);
     }
   };
+
+  const displayName = `${(profile?.first_name || '').trim()} ${(profile?.last_name || '').trim()}`.trim()
+    || (profile?.full_name || '').trim()
+    || 'Aluno';
 
   const handleUpdatePassword = async () => {
     if (newPassword.length < 6) {
@@ -176,17 +198,26 @@ const ProfilePage = () => {
             </button>
           </div>
           <div>
-            <p className="font-medium text-foreground">{profile?.full_name || 'Aluno'}</p>
+            <p className="font-medium text-foreground">{displayName}</p>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="fullName">Nome completo</Label>
+          <Label htmlFor="firstName">Nome</Label>
           <Input
-            id="fullName"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
+            id="firstName"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className="border-border bg-background"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Sobrenome</Label>
+          <Input
+            id="lastName"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
             className="border-border bg-background"
           />
         </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -345,7 +345,7 @@ const CalendarPage = () => {
           headerToolbar={{
             left: isMobile ? 'prev title next' : 'prev,next today',
             center: isMobile ? '' : 'title',
-            right: isMobile ? '' : 'dayGridMonth,timeGridWeek,timeGridDay',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
           locale="pt-br"
           timeZone="America/Sao_Paulo"
@@ -479,3 +479,4 @@ const CalendarPage = () => {
 };
 
 export default CalendarPage;
+

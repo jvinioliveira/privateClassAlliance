@@ -8,6 +8,8 @@ const PASSWORD_RECOVERY_FLAG = 'auth:password-recovery';
 interface Profile {
   id: string;
   full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   phone: string | null;
   avatar_url: string | null;
   role: UserRole;
@@ -18,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -45,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, phone, avatar_url, role')
+      .select('id, full_name, first_name, last_name, phone, avatar_url, role')
       .eq('id', userId)
       .maybeSingle();
 
@@ -103,12 +105,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    const normalizedFirstName = firstName.trim();
+    const normalizedLastName = lastName.trim();
+    const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName || null,
+          first_name: normalizedFirstName || null,
+          last_name: normalizedLastName || null,
+        },
         emailRedirectTo: window.location.origin,
       },
     });

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, Check } from 'lucide-react';
+import { Bell } from 'lucide-react';
 
 const NotificationsPage = () => {
   const { user } = useAuth();
@@ -56,9 +56,15 @@ const NotificationsPage = () => {
       ) : (
         <div className="space-y-2">
           {notifications.map((n: any) => (
-            <div
+            <button
               key={n.id}
-              className={`rounded-xl border p-4 transition-colors animate-fade-in ${
+              type="button"
+              onClick={() => {
+                if (!n.read) {
+                  markReadMutation.mutate(n.id);
+                }
+              }}
+              className={`w-full rounded-xl border p-4 text-left transition-colors animate-fade-in ${
                 n.read
                   ? 'border-border bg-card/50'
                   : 'border-primary/30 bg-primary/5'
@@ -78,16 +84,8 @@ const NotificationsPage = () => {
                     })}
                   </p>
                 </div>
-                {!n.read && (
-                  <button
-                    onClick={() => markReadMutation.mutate(n.id)}
-                    className="shrink-0 rounded-full p-1 text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <Check className="h-4 w-4" />
-                  </button>
-                )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
