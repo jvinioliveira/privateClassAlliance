@@ -17,6 +17,7 @@ import StudentLayout from "@/layouts/StudentLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 
 // Student pages
+import StudentHomePage from "@/pages/student/StudentHomePage";
 import CalendarPage from "@/pages/student/CalendarPage";
 import MyBookingsPage from "@/pages/student/MyBookingsPage";
 import NotificationsPage from "@/pages/student/NotificationsPage";
@@ -49,7 +50,7 @@ const HomeRedirect = () => {
 
   if (!user) return <Navigate to="/login" replace />;
   if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
-  return <Navigate to="/calendar" replace />;
+  return <Navigate to="/home" replace />;
 };
 
 const App = () => (
@@ -69,6 +70,7 @@ const App = () => (
 
             {/* Student */}
             <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
+              <Route path="/home" element={<StudentHomePage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/my-bookings" element={<MyBookingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />

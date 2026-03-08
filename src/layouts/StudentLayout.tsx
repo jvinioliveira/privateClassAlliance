@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Bell, UserCircle, WalletCards } from 'lucide-react';
+import { Bell, Calendar, House, UserCircle, WalletCards } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
@@ -34,6 +34,7 @@ const StudentLayout = () => {
   });
 
   const studentNavItems = [
+    { to: '/home', icon: House, label: 'Início' },
     { to: '/calendar', icon: Calendar, label: 'Agenda' },
     { to: '/plans', icon: WalletCards, label: 'Planos' },
     { to: '/notifications', icon: Bell, label: 'Avisos', badgeCount: unreadCount },
