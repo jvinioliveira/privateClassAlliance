@@ -3,6 +3,7 @@ import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 type UserRole = 'student' | 'admin';
+const PASSWORD_RECOVERY_FLAG = 'auth:password-recovery';
 
 interface Profile {
   id: string;
@@ -58,6 +59,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncAuthState = async (event: AuthChangeEvent, nextSession: Session | null) => {
       if (!mounted) return;
+
+      if (event === 'PASSWORD_RECOVERY' && typeof window !== 'undefined') {
+        sessionStorage.setItem(PASSWORD_RECOVERY_FLAG, Date.now().toString());
+        if (window.location.pathname !== '/reset-password') {
+          const nextUrl = `${window.location.origin}/reset-password${window.location.search}${window.location.hash}`;
+          window.location.replace(nextUrl);
+          return;
+        }
+      }
 
       setSession(nextSession);
       setUser(nextSession?.user ?? null);

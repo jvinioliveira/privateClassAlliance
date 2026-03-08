@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
+
+const PASSWORD_RECOVERY_FLAG = 'auth:password-recovery';
 
 const ResetPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -16,9 +18,28 @@ const ResetPasswordPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Check if this is the recovery callback (user clicked email link)
-  const hashParams = new URLSearchParams(location.hash.replace('#', ''));
-  const isRecovery = hashParams.get('type') === 'recovery';
+  const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const queryParams = new URLSearchParams(location.search);
+  const hasRecoveryType =
+    hashParams.get('type') === 'recovery' || queryParams.get('type') === 'recovery';
+  const hasRecoveryTokens =
+    hashParams.has('access_token') ||
+    hashParams.has('refresh_token') ||
+    queryParams.has('token_hash');
+  const recoveryFlagValue =
+    typeof window !== 'undefined' ? sessionStorage.getItem(PASSWORD_RECOVERY_FLAG) : null;
+  const recoveryFlagTime = recoveryFlagValue ? Number(recoveryFlagValue) : 0;
+  const hasRecoveryFlag =
+    Number.isFinite(recoveryFlagTime) &&
+    recoveryFlagTime > 0 &&
+    Date.now() - recoveryFlagTime < 15 * 60 * 1000;
+  const isRecovery = hasRecoveryType || hasRecoveryTokens || hasRecoveryFlag;
+
+  useEffect(() => {
+    if (recoveryFlagValue && !hasRecoveryFlag && typeof window !== 'undefined') {
+      sessionStorage.removeItem(PASSWORD_RECOVERY_FLAG);
+    }
+  }, [hasRecoveryFlag, recoveryFlagValue]);
 
   const handleSendReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +47,10 @@ const ResetPasswordPage = () => {
     try {
       await resetPassword(email);
       setEmailSent(true);
-      toast.success('Email de recuperação enviado!');
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao enviar email');
+      toast.success('Email de recuperacao enviado!');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar email';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -37,16 +59,21 @@ const ResetPasswordPage = () => {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
-      toast.error('Senha deve ter no mínimo 6 caracteres');
+      toast.error('Senha deve ter no minimo 6 caracteres');
       return;
     }
+
     setLoading(true);
     try {
       await updatePassword(newPassword);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(PASSWORD_RECOVERY_FLAG);
+      }
       toast.success('Senha atualizada com sucesso!');
-      navigate('/', { replace: true });
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao atualizar senha');
+      navigate('/login', { replace: true });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar senha';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -71,7 +98,7 @@ const ResetPasswordPage = () => {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Minimo 6 caracteres"
                 minLength={6}
                 required
                 className="bg-card border-border"
@@ -84,7 +111,7 @@ const ResetPasswordPage = () => {
         ) : emailSent ? (
           <div className="space-y-4 text-center">
             <p className="text-muted-foreground">
-              Enviamos um link de recuperação para <strong className="text-foreground">{email}</strong>
+              Enviamos um link de recuperacao para <strong className="text-foreground">{email}</strong>
             </p>
             <Link to="/login">
               <Button variant="outline" className="w-full font-display uppercase tracking-wider">
@@ -107,7 +134,7 @@ const ResetPasswordPage = () => {
               />
             </div>
             <Button type="submit" className="w-full font-display uppercase tracking-wider" disabled={loading}>
-              {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+              {loading ? 'Enviando...' : 'Enviar link de recuperacao'}
             </Button>
           </form>
         )}
