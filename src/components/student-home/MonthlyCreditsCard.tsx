@@ -1,4 +1,4 @@
-import { animate, motion } from 'framer-motion';
+﻿import { animate, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarDays } from 'lucide-react';
@@ -45,8 +45,8 @@ const MonthlyCreditsCard = ({ loading, hasError, used, total }: MonthlyCreditsCa
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Aulas do mês</p>
-            <h2 className="mt-1 text-xl text-foreground sm:text-2xl">Créditos e progresso</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Créditos ativos</p>
+            <h2 className="mt-1 text-xl text-foreground sm:text-2xl">Saldo e uso dos créditos</h2>
           </div>
           <CalendarDays className="h-5 w-5 text-primary/80" />
         </div>
@@ -61,7 +61,7 @@ const MonthlyCreditsCard = ({ loading, hasError, used, total }: MonthlyCreditsCa
 
         {!loading && hasError && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-            <p className="text-sm font-medium text-destructive">Não foi possível carregar seus créditos do mês.</p>
+            <p className="text-sm font-medium text-destructive">Não foi possível carregar seus créditos ativos.</p>
           </div>
         )}
 
@@ -80,10 +80,10 @@ const MonthlyCreditsCard = ({ loading, hasError, used, total }: MonthlyCreditsCa
 
             <p className="text-sm text-muted-foreground">
               {safeTotal === 0
-                ? 'Você ainda não possui créditos ativos para este mês.'
+                ? 'Você ainda não possui créditos ativos.'
                 : remaining > 0
-                ? `Você ainda pode agendar ${remaining} aula${remaining > 1 ? 's' : ''} este mês.`
-                : 'Você já utilizou todas as aulas deste mês.'}
+                ? `Você ainda pode agendar ${remaining} aula${remaining > 1 ? 's' : ''} com o saldo ativo.`
+                : 'Você já utilizou todos os créditos ativos.'}
             </p>
           </div>
         )}

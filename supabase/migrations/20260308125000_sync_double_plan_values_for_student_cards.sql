@@ -1,4 +1,5 @@
--- Sync default double-class plan values so student cards show the expected prices/savings.
+-- Sync double-class plans using the same proportional discount logic of individual plans,
+-- starting from the double single-lesson base of R$ 150.
 
 WITH desired_plans AS (
   SELECT *
@@ -8,32 +9,32 @@ WITH desired_plans AS (
         'double',
         1,
         'Aula Dupla Avulsa',
-        'Referencia de R$ 160 por aula em dupla.',
-        16000,
+        'Ideal para experimentar o treino em dupla com ritmo forte desde a primeira aula.',
+        15000,
         10
       ),
       (
         'double',
         4,
         'Pacote 4 Aulas em Dupla',
-        'R$ 150 por aula em dupla. Economia de R$ 10 por aula (R$ 40 no pacote).',
-        60000,
+        'Ótimo para manter constância em dupla: R$ 142,50 por aula e economia progressiva para evoluir com parceiro.',
+        57000,
         20
       ),
       (
         'double',
         8,
         'Pacote 8 Aulas em Dupla',
-        'R$ 140 por aula em dupla. Economia de R$ 20 por aula (R$ 160 no pacote).',
-        112000,
+        'Mais volume de treino e melhor custo em dupla: R$ 135,00 por aula, com 10% de desconto sobre a avulsa.',
+        108000,
         30
       ),
       (
         'double',
         12,
         'Pacote 12 Aulas em Dupla',
-        'R$ 130 por aula em dupla. Economia de R$ 30 por aula (R$ 360 no pacote).',
-        156000,
+        'Maior desconto da categoria dupla: R$ 125,00 por aula e ganho máximo no custo-benefício para treinar em alto nível.',
+        150000,
         40
       )
   ) AS t(class_type, credits, name, description, price_cents, sort_order)

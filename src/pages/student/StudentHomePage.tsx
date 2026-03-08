@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
 import {
   CoachMessageCard,
   MonthlyCreditsCard,
@@ -27,7 +28,6 @@ import type {
 
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
-type CreditRow = Database['public']['Tables']['student_month_credits']['Row'];
 type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 type BookingWithSlot = BookingRow & { slot: SlotRow | null };
 type BookingWithSlotRelation = BookingRow & { availability_slots: SlotRow | null };
@@ -56,17 +56,6 @@ const sectionVariants: Variants = {
 const getMonthRef = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
-const getMonthBounds = (monthRef: string) => {
-  const [year, month] = monthRef.split('-').map(Number);
-  const nextYear = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1 : month + 1;
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
-    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
-  };
 };
 
 const formatDateLabel = (isoDate: string) => {
@@ -172,39 +161,18 @@ const StudentHomePage = () => {
     enabled: !!user,
   });
 
-  const creditsQuery = useQuery<CreditRow | null>({
-    queryKey: ['student-home', 'credits', user?.id, monthRef],
+  const creditSummaryQuery = useQuery<StudentCreditSummary>({
+    queryKey: ['student-home', 'credit-summary', user?.id],
     queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('student_month_credits')
-        .select('*')
-        .eq('student_id', user.id)
-        .eq('month_ref', monthRef)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const usedCreditsQuery = useQuery<number>({
-    queryKey: ['student-home', 'used-credits', user?.id, monthRef],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { start, end } = getMonthBounds(monthRef);
-
-      const { count, error } = await supabase
-        .from('bookings')
-        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
-        .eq('student_id', user.id)
-        .eq('status', 'booked')
-        .gte('availability_slots.start_time', start)
-        .lt('availability_slots.start_time', end);
-
-      if (error) throw error;
-      return count ?? 0;
+      if (!user) {
+        return {
+          totalCredits: 0,
+          usedCredits: 0,
+          remainingCredits: 0,
+          nextExpirationAt: null,
+        };
+      }
+      return fetchStudentCreditSummary(user.id);
     },
     enabled: !!user,
   });
@@ -233,7 +201,8 @@ const StudentHomePage = () => {
       toast.success('Aula cancelada com sucesso.');
       queryClient.invalidateQueries({ queryKey: ['student-home'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['used-credits'] });
+      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : 'Não foi possível cancelar esta aula.';
@@ -242,9 +211,9 @@ const StudentHomePage = () => {
   });
 
   const bookings = useMemo(() => bookingsQuery.data ?? [], [bookingsQuery.data]);
-  const monthlyLimit = creditsQuery.data?.monthly_limit ?? 0;
-  const usedCredits = usedCreditsQuery.data ?? 0;
-  const remainingCredits = Math.max(monthlyLimit - usedCredits, 0);
+  const monthlyLimit = creditSummaryQuery.data?.totalCredits ?? 0;
+  const usedCredits = creditSummaryQuery.data?.usedCredits ?? 0;
+  const remainingCredits = creditSummaryQuery.data?.remainingCredits ?? 0;
   const studentName = getDisplayName(profile?.first_name ?? null, profile?.full_name ?? null);
 
   const upcomingBookings = useMemo(() => {
@@ -390,8 +359,8 @@ const StudentHomePage = () => {
         <motion.div variants={sectionVariants} className="grid gap-4 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <MonthlyCreditsCard
-              loading={creditsQuery.isLoading || usedCreditsQuery.isLoading}
-              hasError={creditsQuery.isError || usedCreditsQuery.isError}
+              loading={creditSummaryQuery.isLoading}
+              hasError={creditSummaryQuery.isError}
               used={usedCredits}
               total={monthlyLimit}
             />
@@ -399,8 +368,8 @@ const StudentHomePage = () => {
 
           <div className="lg:col-span-2">
             <SmartReminderBanner
-              loading={creditsQuery.isLoading || usedCreditsQuery.isLoading}
-              hasError={creditsQuery.isError || usedCreditsQuery.isError}
+              loading={creditSummaryQuery.isLoading}
+              hasError={creditSummaryQuery.isError}
               remainingCredits={remainingCredits}
               monthlyLimit={monthlyLimit}
               onPrimaryAction={handleReminderAction}

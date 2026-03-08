@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+ï»¿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +15,7 @@ type BookingWithSlotRelation = BookingRow & { availability_slots: SlotRow | null
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   booked: { label: 'Agendada', variant: 'default' },
-  completed: { label: 'Concluída', variant: 'secondary' },
+  completed: { label: 'ConcluÃ­da', variant: 'secondary' },
   cancelled: { label: 'Cancelada', variant: 'destructive' },
   no_show: { label: 'Falta', variant: 'outline' },
 };
@@ -46,7 +46,9 @@ const MyBookingsPage = () => {
     onSuccess: () => {
       toast.success('Aula cancelada');
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['used-credits'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : 'Erro ao cancelar';
@@ -99,7 +101,7 @@ const MyBookingsPage = () => {
                             month: '2-digit',
                             timeZone: 'America/Sao_Paulo',
                           }).replace(/\./g, '')}{' '}
-                        às{' '}
+                        Ã s{' '}
                         {booking.slot &&
                           new Date(booking.slot.start_time).toLocaleTimeString('pt-BR', {
                             hour: '2-digit',
@@ -132,7 +134,7 @@ const MyBookingsPage = () => {
                 {booking.status === 'booked' && booking.slot && !canCancel(booking.slot.start_time) && (
                   <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    Cancelamento indisponível (menos de 24h)
+                    Cancelamento indisponÃ­vel (menos de 24h)
                   </p>
                 )}
               </div>
@@ -145,3 +147,4 @@ const MyBookingsPage = () => {
 };
 
 export default MyBookingsPage;
+

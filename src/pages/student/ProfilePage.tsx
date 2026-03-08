@@ -11,6 +11,7 @@ import {
   Clock,
   LogOut,
   Pencil,
+  ReceiptText,
   Settings,
   UserCircle,
   WalletCards,
@@ -25,11 +26,16 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { cancelBooking } from '@/hooks/useSupabaseData';
+import {
+  fetchStudentCreditPurchaseHistory,
+  fetchStudentCreditSummary,
+  type StudentCreditPurchase,
+  type StudentCreditSummary,
+} from '@/lib/student-credits';
 import { toast } from 'sonner';
 
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
-type CreditRow = Database['public']['Tables']['student_month_credits']['Row'];
 type BookingWithSlot = BookingRow & { slot: SlotRow | null };
 
 type ProfileSectionKey =
@@ -37,6 +43,7 @@ type ProfileSectionKey =
   | 'bookings'
   | 'completed'
   | 'credits'
+  | 'purchase_history'
   | 'faq'
   | 'settings'
   | 'password';
@@ -72,9 +79,10 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
 const profileSections: ProfileSection[] = [
   { value: 'account', label: 'Minha conta', icon: UserCircle },
   { value: 'bookings', label: 'Meus agendamentos', icon: CalendarClock, studentOnly: true },
+  { value: 'purchase_history', label: 'Histórico de compras', icon: ReceiptText, studentOnly: true },
+  { value: 'credits', label: 'Meus créditos', icon: WalletCards, studentOnly: true },
   { value: 'completed', label: 'Aulas realizadas', icon: CheckCircle2, studentOnly: true },
   { value: 'password', label: 'Redefinir senha', icon: Pencil },
-  { value: 'credits', label: 'Meus créditos', icon: WalletCards, studentOnly: true },
   { value: 'faq', label: 'Dúvidas frequentes', icon: AlertCircle },
   { value: 'settings', label: 'Configurações', icon: Settings },
 ];
@@ -84,6 +92,7 @@ const sectionTitle: Record<ProfileSectionKey, string> = {
   bookings: 'Meus agendamentos',
   completed: 'Aulas realizadas',
   credits: 'Meus créditos',
+  purchase_history: 'Histórico de compras',
   faq: 'Dúvidas frequentes',
   settings: 'Configurações',
   password: 'Redefinir senha',
@@ -110,17 +119,6 @@ const splitFullName = (fullName: string) => {
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) return error.message;
   return fallback;
-};
-
-const getMonthBounds = (monthRef: string) => {
-  const [year, month] = monthRef.split('-').map(Number);
-  const nextYear = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1 : month + 1;
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
-    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
-  };
 };
 
 const formatBookingDateTime = (isoDate: string) => {
@@ -192,37 +190,27 @@ const ProfilePage = () => {
     enabled: !!user && isStudent,
   });
 
-  const { data: credits, isLoading: loadingCredits } = useQuery({
-    queryKey: ['my-credits', user?.id, monthRef],
+  const { data: creditSummary, isLoading: loadingCreditSummary } = useQuery<StudentCreditSummary>({
+    queryKey: ['credit-summary', user?.id],
     queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase
-        .from('student_month_credits')
-        .select('*')
-        .eq('student_id', user.id)
-        .eq('month_ref', monthRef)
-        .maybeSingle();
-      return (data as CreditRow | null) ?? null;
+      if (!user) {
+        return {
+          totalCredits: 0,
+          usedCredits: 0,
+          remainingCredits: 0,
+          nextExpirationAt: null,
+        };
+      }
+      return fetchStudentCreditSummary(user.id);
     },
     enabled: !!user && isStudent,
   });
 
-  const { data: usedCredits = 0, isLoading: loadingUsedCredits } = useQuery({
-    queryKey: ['used-credits', user?.id, monthRef],
+  const { data: purchaseHistory = [], isLoading: loadingPurchaseHistory } = useQuery<StudentCreditPurchase[]>({
+    queryKey: ['credit-purchase-history', user?.id],
     queryFn: async () => {
-      if (!user) return 0;
-      const { start, end } = getMonthBounds(monthRef);
-
-      const { count, error } = await supabase
-        .from('bookings')
-        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
-        .eq('student_id', user.id)
-        .eq('status', 'booked')
-        .gte('availability_slots.start_time', start)
-        .lt('availability_slots.start_time', end);
-
-      if (error) throw error;
-      return count || 0;
+      if (!user) return [];
+      return fetchStudentCreditPurchaseHistory(user.id);
     },
     enabled: !!user && isStudent,
   });
@@ -232,7 +220,9 @@ const ProfilePage = () => {
     onSuccess: () => {
       toast.success('Agendamento cancelado');
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
-      queryClient.invalidateQueries({ queryKey: ['used-credits'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
     },
     onError: (err: unknown) => {
       toast.error(getErrorMessage(err, 'Erro ao cancelar agendamento'));
@@ -429,9 +419,18 @@ const ProfilePage = () => {
     }).length;
   }, [completedBookings, monthRef]);
 
-  const monthlyLimit = credits?.monthly_limit || 0;
-  const remainingCredits = Math.max(monthlyLimit - usedCredits, 0);
+  const monthlyLimit = creditSummary?.totalCredits || 0;
+  const usedCredits = creditSummary?.usedCredits || 0;
+  const remainingCredits = creditSummary?.remainingCredits || 0;
   const usedPercentage = monthlyLimit > 0 ? Math.min((usedCredits / monthlyLimit) * 100, 100) : 0;
+  const nextExpirationLabel = creditSummary?.nextExpirationAt
+    ? new Date(creditSummary.nextExpirationAt).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'America/Sao_Paulo',
+      })
+    : null;
 
   const canCancel = (slotStartTime?: string) => {
     if (!slotStartTime) return false;
@@ -641,7 +640,7 @@ const ProfilePage = () => {
     if (activeSection === 'credits' && isStudent) {
       return (
         <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-          {loadingCredits || loadingUsedCredits ? (
+          {loadingCreditSummary ? (
             <div className="flex items-center justify-center py-10">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
@@ -650,7 +649,7 @@ const ProfilePage = () => {
               <div className="rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Mês atual</p>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Créditos ativos</p>
                     <p className="mt-1 text-2xl font-semibold text-foreground">
                       <span className="text-primary">{usedCredits}</span>
                       <span className="text-muted-foreground">/{monthlyLimit}</span>
@@ -666,12 +665,78 @@ const ProfilePage = () => {
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${usedPercentage}%` }} />
                 </div>
+
+                {nextExpirationLabel && remainingCredits > 0 && (
+                  <p className="mt-3 text-xs text-muted-foreground">Próximo vencimento de créditos: {nextExpirationLabel}</p>
+                )}
               </div>
 
               <Button variant="outline" className="w-full" onClick={() => navigate('/plans')}>
                 Ir para planos
               </Button>
             </>
+          )}
+        </div>
+      );
+    }
+
+    if (activeSection === 'purchase_history' && isStudent) {
+      return (
+        <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+          {loadingPurchaseHistory ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : purchaseHistory.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-background/40 p-6 text-center text-sm text-muted-foreground">
+              Você ainda não possui compras de créditos.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {purchaseHistory.map((purchase) => {
+                const expiresAtMs = new Date(purchase.expiresAt).getTime();
+                const isExpired = Number.isFinite(expiresAtMs) ? expiresAtMs <= Date.now() : false;
+                const isDepleted = purchase.remainingCredits <= 0;
+                const statusLabel = isExpired ? 'Expirado' : isDepleted ? 'Esgotado' : 'Ativo';
+                const statusVariant: 'default' | 'secondary' | 'destructive' | 'outline' = isExpired
+                  ? 'destructive'
+                  : isDepleted
+                  ? 'secondary'
+                  : 'default';
+
+                const selectedAtLabel = new Date(purchase.selectedAt).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  timeZone: 'America/Sao_Paulo',
+                });
+                const expiresAtLabel = new Date(purchase.expiresAt).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  timeZone: 'America/Sao_Paulo',
+                });
+
+                return (
+                  <div key={purchase.id} className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {purchase.planName || 'Plano personalizado'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Compra em {selectedAtLabel} • Expira em {expiresAtLabel}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {purchase.remainingCredits}/{purchase.credits} créditos restantes
+                        </p>
+                      </div>
+                      <Badge variant={statusVariant}>{statusLabel}</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       );
@@ -698,7 +763,7 @@ const ProfilePage = () => {
             <AccordionItem value="faq-3">
               <AccordionTrigger>Onde vejo meus créditos?</AccordionTrigger>
               <AccordionContent>
-                Na opção Meus créditos você acompanha limite do mês, consumo e saldo restante.
+                Na opção Meus créditos você acompanha seu saldo ativo, consumo e validade dos créditos.
               </AccordionContent>
             </AccordionItem>
 

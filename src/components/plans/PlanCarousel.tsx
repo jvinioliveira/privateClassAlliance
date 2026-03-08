@@ -10,6 +10,8 @@ type PlanCarouselProps<T> = {
   getPlanKey: (plan: T, index: number) => string;
   primaryPlanIndex?: number;
   focusPlanIndex?: number | null;
+  focusPlanSignal?: number;
+  focusPauseMs?: number;
   autoRotateMs?: number;
   className?: string;
 };
@@ -20,6 +22,8 @@ const PlanCarousel = <T,>({
   getPlanKey,
   primaryPlanIndex,
   focusPlanIndex,
+  focusPlanSignal,
+  focusPauseMs = 3200,
   autoRotateMs = 7000,
   className,
 }: PlanCarouselProps<T>) => {
@@ -34,12 +38,12 @@ const PlanCarousel = <T,>({
 
   const pauseAutoRotate = () => setIsPaused(true);
 
-  const resumeAutoRotateSoon = () => {
+  const resumeAutoRotateSoon = (delayMs = 900) => {
     if (pauseTimeoutRef.current) window.clearTimeout(pauseTimeoutRef.current);
     pauseTimeoutRef.current = window.setTimeout(() => {
       setIsPaused(false);
       pauseTimeoutRef.current = null;
-    }, 900);
+    }, delayMs);
   };
 
   useEffect(() => {
@@ -80,8 +84,8 @@ const PlanCarousel = <T,>({
     if (!api || focusPlanIndex === undefined || focusPlanIndex === null || focusPlanIndex < 0) return;
     pauseAutoRotate();
     api.scrollTo(focusPlanIndex);
-    resumeAutoRotateSoon();
-  }, [api, focusPlanIndex]);
+    resumeAutoRotateSoon(focusPauseMs);
+  }, [api, focusPauseMs, focusPlanIndex, focusPlanSignal]);
 
   useEffect(() => {
     if (!api || !hasMultiple || isPaused) return;
@@ -104,7 +108,7 @@ const PlanCarousel = <T,>({
       onMouseEnter={pauseAutoRotate}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={pauseAutoRotate}
-      onTouchEnd={resumeAutoRotateSoon}
+      onTouchEnd={() => resumeAutoRotateSoon()}
       onFocusCapture={pauseAutoRotate}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {

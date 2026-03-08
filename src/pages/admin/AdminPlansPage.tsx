@@ -9,13 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 
 type LessonPlanRow = Database['public']['Tables']['lesson_plans']['Row'];
 type PlanClassType = 'individual' | 'double';
 
 const BASE_SINGLE_CLASS_CENTS = 10000;
-const BASE_DOUBLE_CLASS_CENTS = 16000;
+const BASE_DOUBLE_CLASS_CENTS = 15000;
 
 const normalizePlanClassType = (rawValue: unknown): PlanClassType => {
   if (rawValue === 'double') return 'double';
@@ -231,12 +231,13 @@ const AdminPlansPage = () => {
                 Gerenciando: <span className="font-medium text-foreground">{getClassTypeLabel(selectedManagementClassType)}</span>
               </p>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-auto px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground"
+                className="h-8 w-fit border-border/60 bg-background/40 px-2.5 text-xs text-muted-foreground hover:bg-background"
                 onClick={() => setSelectedManagementClassType(null)}
               >
-                Voltar para seleção de categoria
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                Voltar
               </Button>
             </div>
 

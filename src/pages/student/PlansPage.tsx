@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PlanCarousel from '@/components/plans/PlanCarousel';
 import AnimatedSavingsCounter from '@/components/plans/AnimatedSavingsCounter';
+import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
 import { toast } from 'sonner';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -62,7 +63,6 @@ type PurchasePlanData = {
 type SelectedPlanData = {
   id: string;
   plan_id: string;
-  month_ref: string;
   credits: number;
   price_cents: number;
   selected_at: string;
@@ -89,14 +89,9 @@ const ruleItems: RuleItem[] = [
     description: 'Cada crédito corresponde a uma aula particular.',
   },
   {
-    icon: Clock3,
-    title: 'Validade avulsa',
-    description: 'Aula avulsa (1 crédito) tem validade de 15 dias.',
-  },
-  {
     icon: CalendarClock,
-    title: 'Validade dos pacotes',
-    description: 'Compras com 2 a 9 créditos valem 30 dias; a partir de 10 créditos, 45 dias.',
+    title: 'Validade por compra',
+    description: 'Cada compra de créditos tem validade de 30 dias a partir da data da compra.',
   },
   {
     icon: RefreshCcw,
@@ -130,27 +125,12 @@ const formatDateBR = (date: Date) =>
     year: 'numeric',
   }).format(date);
 
-const getMonthBounds = (monthRef: string) => {
-  const [year, month] = monthRef.split('-').map(Number);
-  const nextYear = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1 : month + 1;
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
-    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
-  };
-};
-
 const clampCredits = (value: number) => {
   if (!Number.isFinite(value)) return 1;
   return Math.min(MAX_CUSTOM_CREDITS, Math.max(1, Math.trunc(value)));
 };
 
-const getValidityDays = (credits: number) => {
-  if (credits === 1) return 15;
-  if (credits >= 10) return 45;
-  return 30;
-};
+const getValidityDays = (_credits: number) => 30;
 
 const getFixedUnitPriceCents = (plan: FixedPlan) =>
   plan.displayUnitPriceCents ?? plan.totalPriceCents / plan.credits;
@@ -164,17 +144,19 @@ const getCustomIndividualUnitPrice = (credits: number) => {
 };
 
 const getCustomDoubleUnitPrice = (credits: number) => {
-  if (credits <= 1) return 16000;
-  if (credits <= 3) return 15500;
-  if (credits <= 7) return 15000;
-  if (credits <= 11) return 14000;
-  return 13000;
+  if (credits <= 1) return 15000;
+  if (credits <= 3) return 14550;
+  if (credits <= 7) return 14250;
+  if (credits <= 11) return 13500;
+  return 12500;
 };
 
 const getCustomUnitPrice = (classType: ClassType, credits: number) =>
   classType === 'individual' ? getCustomIndividualUnitPrice(credits) : getCustomDoubleUnitPrice(credits);
 
 const getClassTypeLabel = (classType: ClassType) => (classType === 'individual' ? 'Individual' : 'Dupla');
+const formatCountLabel = (count: number, singular: string, plural: string) =>
+  `${count} ${count === 1 ? singular : plural}`;
 
 const calculateSavings = ({
   baseUnitPriceCents,
@@ -215,11 +197,10 @@ const PlansPage = () => {
   const [selectedClassType, setSelectedClassType] = useState<ClassType | null>(null);
   const [customCredits, setCustomCredits] = useState(1);
   const [lastPurchase, setLastPurchase] = useState<PurchasePlanData | null>(null);
-  const [highlightedPlanCredits, setHighlightedPlanCredits] = useState<number | null>(null);
-  const monthRef = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  }, []);
+  const [highlightedPlanId, setHighlightedPlanId] = useState<string | null>(null);
+  const [focusPlanId, setFocusPlanId] = useState<string | null>(null);
+  const [focusPlanSignal, setFocusPlanSignal] = useState(0);
+  const fixedPlansSectionRef = useRef<HTMLDivElement | null>(null);
 
   const { data: dbPlans = [], isLoading } = useQuery({
     queryKey: ['student-lesson-plans'],
@@ -254,16 +235,17 @@ const PlansPage = () => {
   }, [queryClient]);
 
   const { data: selectedPlan } = useQuery({
-    queryKey: ['selected-plan', user?.id, monthRef],
+    queryKey: ['selected-plan', user?.id],
     queryFn: async () => {
       if (!user) return null;
 
       const { data, error } = await supabase
         .from('student_plan_selections')
-        .select('id, month_ref, credits, price_cents, plan_id, selected_at, lesson_plans(name, description)')
+        .select('id, plan_id, credits, price_cents, selected_at, lesson_plans(name, description)')
         .eq('student_id', user.id)
-        .eq('month_ref', monthRef)
         .eq('status', 'active')
+        .order('selected_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) throw error;
@@ -272,37 +254,18 @@ const PlansPage = () => {
     enabled: !!user,
   });
 
-  const { data: credits } = useQuery({
-    queryKey: ['my-credits', user?.id, monthRef],
+  const { data: creditSummary } = useQuery<StudentCreditSummary>({
+    queryKey: ['credit-summary', user?.id],
     queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('student_month_credits')
-        .select('*')
-        .eq('student_id', user.id)
-        .eq('month_ref', monthRef)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: usedCredits = 0 } = useQuery({
-    queryKey: ['used-credits', user?.id, monthRef],
-    queryFn: async () => {
-      if (!user) return 0;
-      const { start, end } = getMonthBounds(monthRef);
-      const { count, error } = await supabase
-        .from('bookings')
-        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
-        .eq('student_id', user.id)
-        .eq('status', 'booked')
-        .gte('availability_slots.start_time', start)
-        .lt('availability_slots.start_time', end);
-
-      if (error) throw error;
-      return count || 0;
+      if (!user) {
+        return {
+          totalCredits: 0,
+          usedCredits: 0,
+          remainingCredits: 0,
+          nextExpirationAt: null,
+        };
+      }
+      return fetchStudentCreditSummary(user.id);
     },
     enabled: !!user,
   });
@@ -311,15 +274,16 @@ const PlansPage = () => {
     mutationFn: async (planId: string) => {
       const { error } = await supabase.rpc('choose_plan', {
         p_plan_id: planId,
-        p_month_ref: monthRef,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Plano aplicado com sucesso.');
       queryClient.invalidateQueries({ queryKey: ['selected-plan'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
       queryClient.invalidateQueries({ queryKey: ['my-credits'] });
-      queryClient.invalidateQueries({ queryKey: ['used-credits'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -385,8 +349,8 @@ const PlansPage = () => {
     const totalPriceCents = Math.round(unitPriceCents * normalizedCredits);
     const planName =
       selectedClassType === 'individual'
-        ? `Plano personalizado individual - ${normalizedCredits} créditos`
-        : `Plano personalizado dupla - ${normalizedCredits} créditos`;
+        ? `Plano personalizado individual - ${formatCountLabel(normalizedCredits, 'crédito', 'créditos')}`
+        : `Plano personalizado dupla - ${formatCountLabel(normalizedCredits, 'crédito', 'créditos')}`;
 
     return toPurchaseData(
       'custom',
@@ -445,18 +409,14 @@ const PlansPage = () => {
   );
   const baseFixedUnitPriceCents = selectedFixedPlans.length > 0 ? getFixedUnitPriceCents(selectedFixedPlans[0]) : 0;
   const primaryPlanIndex = selectedFixedPlans.findIndex((plan) => !!plan.highlight || plan.badge === 'Melhor valor');
-  const focusedPlanIndex = highlightedPlanCredits
-    ? selectedFixedPlans.findIndex((plan) => plan.credits === highlightedPlanCredits)
+  const focusedPlanIndex = focusPlanId
+    ? selectedFixedPlans.findIndex((plan) => plan.id === focusPlanId)
     : -1;
 
   const handlePurchase = (planData: PurchasePlanData, dbPlanId?: string) => {
     setLastPurchase(planData);
 
     if (dbPlanId) {
-      if (usedCredits > planData.credits) {
-        toast.error(`Este plano não pode ser aplicado agora, pois você já usou ${usedCredits} créditos no mês.`);
-        return;
-      }
       choosePlanMutation.mutate(dbPlanId);
       return;
     }
@@ -464,15 +424,17 @@ const PlansPage = () => {
     toast.success('Resumo da compra preparado. Integracao com pagamento sera conectada na proxima etapa.');
   };
 
-  const remaining = Math.max((credits?.monthly_limit || 0) - usedCredits, 0);
+  const totalCredits = creditSummary?.totalCredits ?? 0;
+  const usedCredits = creditSummary?.usedCredits ?? 0;
+  const remaining = creditSummary?.remainingCredits ?? 0;
   const creditExpiryInfo = useMemo(() => {
-    if (!selectedPlan?.selected_at) return null;
+    if ((creditSummary?.remainingCredits ?? 0) <= 0) return null;
+    const nextExpiration = creditSummary?.nextExpirationAt;
+    if (!nextExpiration) return null;
 
-    const purchasedAtMs = new Date(selectedPlan.selected_at).getTime();
-    if (!Number.isFinite(purchasedAtMs)) return null;
+    const expiresAt = new Date(nextExpiration);
+    if (!Number.isFinite(expiresAt.getTime())) return null;
 
-    const validityDays = getValidityDays(selectedPlan.credits);
-    const expiresAt = new Date(purchasedAtMs + validityDays * 24 * 60 * 60 * 1000);
     const diffMs = expiresAt.getTime() - Date.now();
     const daysRemaining = Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
 
@@ -480,16 +442,20 @@ const PlansPage = () => {
       daysRemaining,
       expiresAtLabel: formatDateBR(expiresAt),
     };
-  }, [selectedPlan]);
+  }, [creditSummary?.nextExpirationAt, creditSummary?.remainingCredits]);
 
-  const scrollToEquivalentPlan = (creditsToFocus: number) => {
+  const scrollToEquivalentPlan = (planToFocus: FixedPlan) => {
     if (!selectedClassType) return;
-    setHighlightedPlanCredits(creditsToFocus);
+    fixedPlansSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setHighlightedPlanId(planToFocus.id);
+    setFocusPlanId(planToFocus.id);
+    setFocusPlanSignal((prev) => prev + 1);
   };
 
   const handleClassTypeSelection = (classType: ClassType) => {
     setSelectedClassType(classType);
-    setHighlightedPlanCredits(null);
+    setHighlightedPlanId(null);
+    setFocusPlanId(null);
   };
 
   return (
@@ -498,13 +464,13 @@ const PlansPage = () => {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-display text-xl uppercase tracking-wider">Planos e créditos</h1>
-            <p className="text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constÃ¢ncia.</p>
+            <p className="pt-2 text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constância.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">
-            Créditos utilizados: {usedCredits}/{credits?.monthly_limit || 0}
+            Créditos utilizados: {usedCredits}/{totalCredits}
           </Badge>
           <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
           {selectedPlan?.lesson_plans?.name && (
@@ -526,11 +492,11 @@ const PlansPage = () => {
         {creditExpiryInfo && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
             <p className="text-sm font-medium text-foreground">
-              Seus créditos atuais expiram em {creditExpiryInfo.daysRemaining} dia
-              {creditExpiryInfo.daysRemaining === 1 ? '' : 's'} ({creditExpiryInfo.expiresAtLabel}).
+              Seus créditos atuais expiram em {formatCountLabel(creditExpiryInfo.daysRemaining, 'dia', 'dias')} (
+              {creditExpiryInfo.expiresAtLabel}).
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Cada compra tem validade própria a partir da data da compra. Novos créditos não acumulam prazo aos anteriores.
+              Créditos acumulam no seu saldo, mas cada compra mantém validade própria de 30 dias.
             </p>
           </div>
         )}
@@ -587,7 +553,7 @@ const PlansPage = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="space-y-3">
+          <div ref={fixedPlansSectionRef} className="space-y-3">
             <div className="space-y-1">
               <h2 className="font-display text-base uppercase tracking-wider">
                 {selectedClassType === 'individual' ? 'Planos fixos individuais' : 'Planos fixos em dupla'}
@@ -605,14 +571,16 @@ const PlansPage = () => {
                 getPlanKey={(plan) => plan.id}
                 primaryPlanIndex={primaryPlanIndex >= 0 ? primaryPlanIndex : undefined}
                 focusPlanIndex={focusedPlanIndex >= 0 ? focusedPlanIndex : undefined}
+                focusPlanSignal={focusPlanSignal}
+                focusPauseMs={3200}
                 renderPlanCard={(plan, _index, slideState) => {
                   const unitPriceCents = getFixedUnitPriceCents(plan);
                   const perStudentCents = unitPriceCents / 2;
                   const isSelected = selectedPlan?.plan_id === plan.id;
-                  const cannotApply = usedCredits > plan.credits;
                   const isApplying = choosePlanMutation.isPending && choosePlanMutation.variables === plan.id;
                   const isDouble = selectedClassType === 'double';
-                  const isHighlighted = !!plan.highlight || highlightedPlanCredits === plan.credits;
+                  const isEquivalentHighlighted = highlightedPlanId === plan.id;
+                  const isHighlighted = !!plan.highlight || isEquivalentHighlighted;
                   const isMainChosen = plan.badge === 'Melhor valor';
                   const { totalSavingsCents } = calculateSavings({
                     baseUnitPriceCents: baseFixedUnitPriceCents,
@@ -637,7 +605,9 @@ const PlansPage = () => {
                         slideState.isActive ? 'shadow-lg shadow-primary/20' : 'shadow-sm shadow-black/5'
                       } ${
                         isHighlighted ? 'bg-gradient-to-b from-primary/10 via-card to-card' : 'bg-gradient-to-b from-background/60 to-card'
-                      } ${isMainChosen && slideState.isActive ? 'lg:scale-[1.02]' : ''}`}
+                      } ${isMainChosen && slideState.isActive ? 'lg:scale-[1.02]' : ''} ${
+                        isEquivalentHighlighted ? 'plan-equivalent-pulse' : ''
+                      }`}
                     >
                       <div className="flex h-full flex-col gap-3">
                         <div className="space-y-3">
@@ -674,7 +644,9 @@ const PlansPage = () => {
                             </div>
                             <div className="rounded-md border border-border/70 bg-background/60 p-2">
                               <p className="text-[11px] text-muted-foreground">Validade</p>
-                              <p className="font-medium text-foreground">{plan.validityDays} dias</p>
+                              <p className="font-medium text-foreground">
+                                {formatCountLabel(plan.validityDays, 'dia', 'dias')}
+                              </p>
                             </div>
                             <div className="rounded-md border border-border/70 bg-background/60 p-2">
                               <p className="text-[11px] text-muted-foreground">Tipo</p>
@@ -697,16 +669,11 @@ const PlansPage = () => {
 
                           {plan.note && <p className="text-xs text-muted-foreground">{plan.note}</p>}
                           {plan.reinforcement && <p className="text-xs font-medium text-primary">{plan.reinforcement}</p>}
-                          {cannotApply && (
-                            <p className="text-xs text-destructive">
-                              Este plano não pode ser aplicado neste mês porque você já usou {usedCredits} créditos.
-                            </p>
-                          )}
                         </div>
 
                         <Button
                           onClick={() => handlePurchase(purchaseData, plan.id)}
-                          disabled={isApplying || isSelected || cannotApply}
+                          disabled={isApplying || isSelected}
                           className="mt-auto w-full font-display uppercase tracking-wider"
                         >
                           {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Comprar créditos'}
@@ -806,7 +773,9 @@ const PlansPage = () => {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Mínimo 1 e máximo {MAX_CUSTOM_CREDITS} créditos.</p>
+              <p className="text-xs text-muted-foreground">
+                Mínimo 1 crédito e máximo {formatCountLabel(MAX_CUSTOM_CREDITS, 'crédito', 'créditos')}.
+              </p>
             </div>
 
             <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -820,7 +789,9 @@ const PlansPage = () => {
                     </div>
                     <div className="rounded-md border border-primary/20 bg-background/70 p-2">
                       <p className="text-muted-foreground">Quantidade</p>
-                      <p className="font-medium text-foreground">{customPreview.credits} créditos</p>
+                      <p className="font-medium text-foreground">
+                        {formatCountLabel(customPreview.credits, 'crédito', 'créditos')}
+                      </p>
                     </div>
                     <div className="rounded-md border border-primary/20 bg-background/70 p-2">
                       <p className="text-muted-foreground">
@@ -840,22 +811,25 @@ const PlansPage = () => {
                     </div>
                     <div className="rounded-md border border-primary/20 bg-background/70 p-2">
                       <p className="text-muted-foreground">Validade</p>
-                      <p className="font-medium text-foreground">{customPreview.validityDays} dias</p>
+                      <p className="font-medium text-foreground">
+                        {formatCountLabel(customPreview.validityDays, 'dia', 'dias')}
+                      </p>
                     </div>
                   </div>
                   {equivalentCustomFixedPlan && (
                     <div className="rounded-md border border-primary/40 bg-background/80 p-2">
                       <p className="text-xs font-medium text-primary">
-                        Você está no mesmo valor do pacote de {equivalentCustomFixedPlan.credits} aulas.
+                        Você está no mesmo valor do pacote de{' '}
+                        {formatCountLabel(equivalentCustomFixedPlan.credits, 'aula', 'aulas')}.
                       </p>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => scrollToEquivalentPlan(equivalentCustomFixedPlan.credits)}
+                        onClick={() => scrollToEquivalentPlan(equivalentCustomFixedPlan)}
                         className="mt-2"
                       >
-                        Ver plano equivalente
+                        Ver plano de {formatCountLabel(equivalentCustomFixedPlan.credits, 'aula', 'aulas')}
                         <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -915,7 +889,9 @@ const PlansPage = () => {
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
                   <p className="text-muted-foreground">Validade</p>
-                  <p className="font-medium text-foreground">{highlightedPurchase.validityDays} dias</p>
+                  <p className="font-medium text-foreground">
+                    {formatCountLabel(highlightedPurchase.validityDays, 'dia', 'dias')}
+                  </p>
                 </div>
               </div>
             </div>
@@ -927,7 +903,3 @@ const PlansPage = () => {
 };
 
 export default PlansPage;
-
-
-
-

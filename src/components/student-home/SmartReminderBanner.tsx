@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,18 +59,18 @@ const SmartReminderBanner = ({
                   <>
                     <p className="text-sm text-muted-foreground">
                       Você ainda tem {remainingCredits} aula{remainingCredits > 1 ? 's' : ''} disponível
-                      {remainingCredits > 1 ? 'is' : ''} este mês.
+                      {remainingCredits > 1 ? 'is' : ''} no saldo ativo.
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Aproveite para agendar antes do fim do mês.
+                      Aproveite para agendar antes do vencimento dos seus créditos.
                     </p>
                   </>
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
                       {monthlyLimit > 0
-                        ? 'Suas aulas deste mês já foram utilizadas.'
-                        : 'Você ainda não possui créditos ativos neste mês.'}
+                        ? 'Seus créditos ativos já foram utilizados.'
+                        : 'Você ainda não possui créditos ativos.'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Consulte novos horários ou fale com o professor para renovar.

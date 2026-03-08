@@ -12,23 +12,13 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { bookSlot, joinWaitlist } from '@/hooks/useSupabaseData';
+import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, User, Clock, AlertTriangle, Plus } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-const getMonthBounds = (monthRef: string) => {
-  const [year, month] = monthRef.split('-').map(Number);
-  const nextYear = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1 : month + 1;
-
-  return {
-    start: `${year}-${String(month).padStart(2, '0')}-01T00:00:00-03:00`,
-    end: `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00-03:00`,
-  };
-};
 
 type SlotTime = { start_time: string; end_time: string };
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
@@ -136,45 +126,20 @@ const CalendarPage = () => {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [bookingType, setBookingType] = useState<1 | 2>(1);
 
-  // Current month ref for credits
-  const now = new Date();
-  const monthRef = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-  // Credits
-  const { data: credits } = useQuery({
-    queryKey: ['my-credits', user?.id, monthRef],
+  const { data: creditSummary } = useQuery<StudentCreditSummary>({
+    queryKey: ['credit-summary', user?.id],
     queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase
-        .from('student_month_credits')
-        .select('*')
-        .eq('student_id', user.id)
-        .eq('month_ref', monthRef)
-        .maybeSingle();
-      return data;
+      if (!user) {
+        return {
+          totalCredits: 0,
+          usedCredits: 0,
+          remainingCredits: 0,
+          nextExpirationAt: null,
+        };
+      }
+      return fetchStudentCreditSummary(user.id);
     },
     enabled: !!user,
-  });
-
-  const { data: usedCredits } = useQuery({
-    queryKey: ['used-credits', user?.id, monthRef],
-    queryFn: async () => {
-      if (!user) return 0;
-
-      const { start, end } = getMonthBounds(monthRef);
-      const { count, error } = await supabase
-        .from('bookings')
-        .select('id, availability_slots!inner(start_time)', { count: 'exact', head: true })
-        .eq('student_id', user.id)
-        .eq('status', 'booked')
-        .gte('availability_slots.start_time', start)
-        .lt('availability_slots.start_time', end);
-
-      if (error) throw error;
-
-      return count || 0;
-    },
-    enabled: !!user && !!monthRef,
   });
 
   // Slots
@@ -275,7 +240,9 @@ const CalendarPage = () => {
       setSelectedSlot(null);
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-for-slots'] });
-      queryClient.invalidateQueries({ queryKey: ['used-credits'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
     },
     onError: (err: unknown) => {
@@ -322,7 +289,9 @@ const CalendarPage = () => {
     }
   };
 
-  const remaining = (credits?.monthly_limit || 0) - (usedCredits || 0);
+  const usedCredits = creditSummary?.usedCredits ?? 0;
+  const totalCredits = creditSummary?.totalCredits ?? 0;
+  const remaining = creditSummary?.remainingCredits ?? 0;
 
   return (
     <div className="space-y-4 p-4">
@@ -331,18 +300,16 @@ const CalendarPage = () => {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-display">
-              Aulas este mês
+              Créditos ativos
             </p>
             <p className="mt-1 text-xl font-bold text-foreground font-display sm:text-2xl">
-              <span className="text-primary">{usedCredits || 0}</span>
-              <span className="text-muted-foreground">/{credits?.monthly_limit || 0}</span>
+              <span className="text-primary">{usedCredits}</span>
+              <span className="text-muted-foreground">/{totalCredits}</span>
             </p>
           </div>
           <div className="shrink-0 text-right">
             <p className="text-xs text-muted-foreground">Restantes</p>
-            <p className={`text-lg font-bold font-display sm:text-xl ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>
-              {remaining < 0 ? 0 : remaining}
-            </p>
+            <p className={`text-lg font-bold font-display sm:text-xl ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>{remaining}</p>
           </div>
         </div>
       </div>
