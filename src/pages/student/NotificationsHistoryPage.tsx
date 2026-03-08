@@ -71,7 +71,7 @@ const NotificationsHistoryPage = () => {
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Historico de notificacoes</h1>
+          <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Histórico de notificações</h1>
           <p className="text-xs text-muted-foreground">
             Mostrando pagina {page + 1} de {totalPages}
           </p>
@@ -83,7 +83,7 @@ const NotificationsHistoryPage = () => {
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">{totalCount} notificacoes no total</span>
+          <span className="text-xs text-muted-foreground">{totalCount} notificações no total</span>
           <Button
             type="button"
             size="sm"

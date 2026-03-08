@@ -20,6 +20,10 @@ const NotificationsPage = () => {
   const navigate = useNavigate();
   const [draftMessage, setDraftMessage] = useState('');
   const [showClosedHistory, setShowClosedHistory] = useState(false);
+  const chatHistoryCutoffIso = useMemo(
+    () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
 
   const { data: admins = [] } = useQuery<Pick<ProfileRow, 'id' | 'full_name'>[]>({
     queryKey: ['chat-admin-list', user?.id],
@@ -67,6 +71,7 @@ const NotificationsPage = () => {
       let query = supabase
         .from('direct_messages')
         .select('*')
+        .gte('created_at', chatHistoryCutoffIso)
         .order('created_at', { ascending: true })
         .limit(300);
 
@@ -146,7 +151,7 @@ const NotificationsPage = () => {
 
   const setConversationStatusMutation = useMutation({
     mutationFn: async (status: 'open' | 'closed') => {
-      if (!primaryAdmin) throw new Error('Professor nao encontrado');
+      if (!primaryAdmin) throw new Error('Professor não encontrado');
       const { data, error } = await supabase.rpc('set_direct_conversation_status', {
         p_other_user_id: primaryAdmin.id,
         p_status: status,
@@ -193,7 +198,7 @@ const NotificationsPage = () => {
 
   return (
     <div className="space-y-4 p-4">
-      <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Mensagens e Notificacoes</h1>
+      <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Mensagens e Notificações</h1>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -210,7 +215,7 @@ const NotificationsPage = () => {
                   variant="outline"
                   onClick={() => setShowClosedHistory((prev) => !prev)}
                 >
-                  {showClosedHistory ? 'Ocultar historico' : 'Ver historico'}
+                  {showClosedHistory ? 'Ocultar histórico' : 'Ver histórico'}
                 </Button>
                 <Button
                   type="button"
@@ -237,7 +242,7 @@ const NotificationsPage = () => {
 
         {chatClosed && !showClosedHistory ? (
           <div className="rounded-lg border border-border bg-background/40 p-4 text-sm text-muted-foreground">
-            Chat encerrado. Use "Ver historico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
+            Chat encerrado. Use "Ver histórico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
           </div>
         ) : (
           <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
@@ -297,7 +302,7 @@ const NotificationsPage = () => {
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Notificacoes do sistema</h2>
+          <h2 className="text-sm font-semibold text-foreground">Notificações do sistema</h2>
           {hasMoreNotifications && (
             <Button type="button" variant="outline" size="sm" onClick={() => navigate('/notifications/history')}>
               Ver todas

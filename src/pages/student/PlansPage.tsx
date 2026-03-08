@@ -648,7 +648,7 @@ const PlansPage = () => {
                               </p>
                             </div>
                             <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                              <p className="text-[11px] text-muted-foreground">Creditos</p>
+                              <p className="text-[11px] text-muted-foreground">Créditos</p>
                               <p className="font-medium text-foreground">{plan.credits}</p>
                             </div>
                             <div className="rounded-md border border-border/70 bg-background/60 p-2">

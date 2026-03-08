@@ -856,7 +856,7 @@ const ProfilePage = () => {
           </Button>
 
           <div className="space-y-2 pt-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Historico recente</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Histórico recente</p>
             {loadingFeedbackHistory ? (
               <div className="flex items-center justify-center py-6">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />

@@ -140,6 +140,10 @@ const StudentHomePage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const monthRef = getMonthRef();
+  const chatHistoryCutoffIso = useMemo(
+    () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
 
   const bookingsQuery = useQuery<BookingWithSlot[]>({
     queryKey: ['student-home', 'bookings', user?.id],
@@ -186,6 +190,7 @@ const StudentHomePage = () => {
         .from('direct_messages')
         .select('*')
         .eq('recipient_id', user.id)
+        .gte('created_at', chatHistoryCutoffIso)
         .order('created_at', { ascending: false })
         .limit(50);
 

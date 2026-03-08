@@ -22,9 +22,9 @@ type FeedbackWithStudent = FeedbackRow & {
 };
 
 const categoryLabels: Record<string, string> = {
-  complaint: 'Reclamacao',
+  complaint: 'Reclamação',
   compliment: 'Elogio',
-  suggestion: 'Sugestao',
+  suggestion: 'Sugestão',
   other: 'Outro',
   bug: 'Bug do site',
 };
@@ -41,6 +41,10 @@ const AdminStudentsPage = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [limitInput, setLimitInput] = useState(0);
+  const chatHistoryCutoffIso = useMemo(
+    () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['admin-students'],
@@ -78,6 +82,7 @@ const AdminStudentsPage = () => {
         .select('*')
         .eq('recipient_id', user.id)
         .is('read_at', null)
+        .gte('created_at', chatHistoryCutoffIso)
         .order('created_at', { ascending: false })
         .limit(400);
       if (error) throw error;
@@ -123,6 +128,7 @@ const AdminStudentsPage = () => {
       let query = supabase
         .from('direct_messages')
         .select('*')
+        .gte('created_at', chatHistoryCutoffIso)
         .order('created_at', { ascending: true })
         .limit(300);
 
@@ -198,7 +204,7 @@ const AdminStudentsPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Creditos atualizados');
+      toast.success('Créditos atualizados');
       setSelectedStudent(null);
       queryClient.invalidateQueries({ queryKey: ['admin-credits'] });
     },
@@ -231,7 +237,7 @@ const AdminStudentsPage = () => {
 
   const setConversationStatusMutation = useMutation({
     mutationFn: async (status: 'open' | 'closed') => {
-      if (!chatStudent) throw new Error('Aluno nao encontrado');
+      if (!chatStudent) throw new Error('Aluno não encontrado');
       const { data, error } = await supabase.rpc('set_direct_conversation_status', {
         p_other_user_id: chatStudent.id,
         p_status: status,
@@ -261,9 +267,9 @@ const AdminStudentsPage = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-display text-xl uppercase tracking-wider">Alunos e Creditos</h1>
+        <h1 className="font-display text-xl uppercase tracking-wider">Alunos e créditos</h1>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <Label className="text-xs text-muted-foreground">Mes:</Label>
+          <Label className="text-xs text-muted-foreground">Mês:</Label>
           <Input
             type="month"
             value={monthInput}
@@ -313,7 +319,7 @@ const AdminStudentsPage = () => {
                         </Badge>
                       )}
                     </button>
-                    <p className="text-xs text-muted-foreground">Limite: {credit?.monthly_limit || 0} aulas/Mes</p>
+                    <p className="text-xs text-muted-foreground">Limite: {credit?.monthly_limit || 0} aulas/mês</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -332,7 +338,7 @@ const AdminStudentsPage = () => {
                       setSelectedStudent(student);
                       setLimitInput(credit?.monthly_limit || 0);
                     }}
-                    title="Editar creditos"
+                    title="Editar créditos"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -344,7 +350,7 @@ const AdminStudentsPage = () => {
       )}
 
       <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Sugestoes, reclamacoes e bugs dos alunos</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Sugestões, reclamações e bugs dos alunos</h2>
         {feedbacks.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum feedback enviado ainda.</p>
         ) : (
@@ -367,7 +373,7 @@ const AdminStudentsPage = () => {
       <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
         <DialogContent className="bg-card border-border sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display uppercase tracking-wider">Definir Creditos</DialogTitle>
+            <DialogTitle className="font-display uppercase tracking-wider">Definir créditos</DialogTitle>
           </DialogHeader>
           {selectedStudent && (
             <div className="space-y-4">
@@ -427,7 +433,7 @@ const AdminStudentsPage = () => {
                       variant="outline"
                       onClick={() => setShowClosedHistory((prev) => !prev)}
                     >
-                      {showClosedHistory ? 'Ocultar historico' : 'Ver historico'}
+                      {showClosedHistory ? 'Ocultar histórico' : 'Ver histórico'}
                     </Button>
                     <Button
                       type="button"
@@ -454,7 +460,7 @@ const AdminStudentsPage = () => {
 
             {chatClosed && !showClosedHistory ? (
               <div className="rounded-lg border border-border bg-background/40 p-4 text-sm text-muted-foreground">
-                Chat encerrado. Use "Ver historico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
+                Chat encerrado. Use "Ver histórico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
               </div>
             ) : (
               <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
