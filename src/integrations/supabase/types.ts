@@ -114,6 +114,7 @@ export type Database = {
       }
       lesson_plans: {
         Row: {
+          class_type: string
           created_at: string
           credits: number
           description: string | null
@@ -125,6 +126,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          class_type?: string
           created_at?: string
           credits: number
           description?: string | null
@@ -136,6 +138,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          class_type?: string
           created_at?: string
           credits?: number
           description?: string | null

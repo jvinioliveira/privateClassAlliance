@@ -18,8 +18,17 @@ import { toast } from 'sonner';
 import { Pencil, Plus } from 'lucide-react';
 
 type LessonPlanRow = Database['public']['Tables']['lesson_plans']['Row'];
+type PlanClassType = 'individual' | 'double';
 
 const BASE_SINGLE_CLASS_CENTS = 10000;
+const BASE_DOUBLE_CLASS_CENTS = 16000;
+
+const normalizePlanClassType = (rawValue: unknown): PlanClassType => {
+  if (rawValue === 'double') return 'double';
+  return 'individual';
+};
+
+const getClassTypeLabel = (classType: PlanClassType) => (classType === 'individual' ? 'Individual' : 'Dupla');
 
 const formatMoney = (cents: number) =>
   new Intl.NumberFormat('pt-BR', {
@@ -33,6 +42,7 @@ const AdminPlansPage = () => {
   const [editingPlan, setEditingPlan] = useState<LessonPlanRow | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [classType, setClassType] = useState<PlanClassType>('individual');
   const [credits, setCredits] = useState(1);
   const [priceReais, setPriceReais] = useState('100.00');
   const [sortOrder, setSortOrder] = useState(0);
@@ -44,6 +54,7 @@ const AdminPlansPage = () => {
       const { data, error } = await supabase
         .from('lesson_plans')
         .select('*')
+        .order('class_type', { ascending: true })
         .order('sort_order', { ascending: true })
         .order('credits', { ascending: true });
 
@@ -56,6 +67,7 @@ const AdminPlansPage = () => {
     setEditingPlan(null);
     setName('');
     setDescription('');
+    setClassType('individual');
     setCredits(1);
     setPriceReais('100.00');
     setSortOrder(0);
@@ -71,6 +83,7 @@ const AdminPlansPage = () => {
     setEditingPlan(plan);
     setName(plan.name);
     setDescription(plan.description || '');
+    setClassType(normalizePlanClassType(plan.class_type));
     setCredits(plan.credits);
     setPriceReais((plan.price_cents / 100).toFixed(2));
     setSortOrder(plan.sort_order);
@@ -99,11 +112,32 @@ const AdminPlansPage = () => {
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
+        class_type: classType,
         credits: parsedCredits,
         price_cents: Math.round(parsedPrice * 100),
         sort_order: Math.trunc(parsedSortOrder),
         is_active: isActive,
       };
+
+      const duplicateQuery = supabase
+        .from('lesson_plans')
+        .select('id, name')
+        .eq('class_type', classType)
+        .eq('credits', parsedCredits)
+        .eq('price_cents', payload.price_cents)
+        .limit(1);
+
+      if (editingPlan) {
+        duplicateQuery.neq('id', editingPlan.id);
+      }
+
+      const { data: duplicate, error: duplicateError } = await duplicateQuery.maybeSingle();
+      if (duplicateError) throw duplicateError;
+      if (duplicate) {
+        throw new Error(
+          `Ja existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} creditos e valor ${formatMoney(payload.price_cents)}.`,
+        );
+      }
 
       if (editingPlan) {
         const { error } = await supabase
@@ -124,7 +158,13 @@ const AdminPlansPage = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-lesson-plans'] });
       queryClient.invalidateQueries({ queryKey: ['student-lesson-plans'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if ((err as unknown as { code?: string }).code === '23505') {
+        toast.error('Plano duplicado para a mesma categoria, creditos e valor.');
+        return;
+      }
+      toast.error(err.message);
+    },
   });
 
   const toggleActiveMutation = useMutation({
@@ -143,15 +183,16 @@ const AdminPlansPage = () => {
   });
 
   const plansWithMetrics = useMemo(
-    () =>
-      plans.map((plan) => {
+    () => {
+      return plans.map((plan) => {
+        const planClassType = normalizePlanClassType(plan.class_type);
+        const reference = planClassType === 'double' ? BASE_DOUBLE_CLASS_CENTS : BASE_SINGLE_CLASS_CENTS;
         const pricePerClass = plan.credits > 0 ? plan.price_cents / plan.credits : plan.price_cents;
-        const discountPct = Math.max(
-          0,
-          Number((((BASE_SINGLE_CLASS_CENTS - pricePerClass) / BASE_SINGLE_CLASS_CENTS) * 100).toFixed(1)),
-        );
-        return { ...plan, pricePerClass, discountPct };
-      }),
+        const discountPct = Math.max(0, Number((((reference - pricePerClass) / reference) * 100).toFixed(1)));
+
+        return { ...plan, planClassType, pricePerClass, discountPct };
+      });
+    },
     [plans],
   );
 
@@ -197,6 +238,28 @@ const AdminPlansPage = () => {
                   placeholder="Resumo do plano"
                   className="bg-background"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Categoria do plano</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={classType === 'individual' ? 'default' : 'outline'}
+                    className="font-display uppercase tracking-wider"
+                    onClick={() => setClassType('individual')}
+                  >
+                    Individual
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={classType === 'double' ? 'default' : 'outline'}
+                    className="font-display uppercase tracking-wider"
+                    onClick={() => setClassType('double')}
+                  >
+                    Dupla
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -278,6 +341,7 @@ const AdminPlansPage = () => {
                     <Badge variant={plan.is_active ? 'default' : 'outline'}>
                       {plan.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
+                    <Badge variant="outline">{getClassTypeLabel(plan.planClassType)}</Badge>
                     <Badge variant="secondary">{plan.credits} Créditos</Badge>
                   </div>
                   {plan.description && (
@@ -285,7 +349,8 @@ const AdminPlansPage = () => {
                   )}
                   <p className="text-sm text-foreground">
                     Total: <strong>{formatMoney(plan.price_cents)}</strong> (
-                    {formatMoney(Math.round(plan.pricePerClass))} por aula)
+                    {formatMoney(Math.round(plan.planClassType === 'double' ? plan.pricePerClass / 2 : plan.pricePerClass))}{' '}
+                    {plan.planClassType === 'double' ? 'por aluno' : 'por aula'})
                   </p>
                   {plan.discountPct > 0 && (
                     <p className="text-xs text-primary">Desconto aproximado: {plan.discountPct}%</p>

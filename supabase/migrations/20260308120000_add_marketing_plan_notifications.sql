@@ -39,6 +39,7 @@ BEGIN
 
     IF NEW.name IS NOT DISTINCT FROM OLD.name
       AND NEW.description IS NOT DISTINCT FROM OLD.description
+      AND NEW.class_type IS NOT DISTINCT FROM OLD.class_type
       AND NEW.credits IS NOT DISTINCT FROM OLD.credits
       AND NEW.price_cents IS NOT DISTINCT FROM OLD.price_cents
       AND NEW.is_active IS NOT DISTINCT FROM OLD.is_active THEN
@@ -93,8 +94,7 @@ $$;
 
 DROP TRIGGER IF EXISTS on_lesson_plan_marketing_notify ON public.lesson_plans;
 CREATE TRIGGER on_lesson_plan_marketing_notify
-  AFTER INSERT OR UPDATE OF name, description, credits, price_cents, is_active
+  AFTER INSERT OR UPDATE OF name, description, class_type, credits, price_cents, is_active
   ON public.lesson_plans
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_lesson_plan_marketing();
-

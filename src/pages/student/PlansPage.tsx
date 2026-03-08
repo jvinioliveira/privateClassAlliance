@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -32,6 +32,8 @@ type PlanType = 'fixed' | 'custom';
 type PlanBadgeVariant = 'default' | 'secondary' | 'outline';
 
 type FixedPlan = {
+  id: string;
+  classType: ClassType;
   name: string;
   description: string;
   credits: number;
@@ -57,11 +59,6 @@ type PurchasePlanData = {
   totalPriceCents: number;
 };
 
-type AdminPlanCard = LessonPlanRow & {
-  validityDays: number;
-  unitPriceCents: number;
-};
-
 type SelectedPlanData = {
   id: string;
   plan_id: string;
@@ -80,114 +77,41 @@ type RuleItem = {
 
 const MAX_CUSTOM_CREDITS = 30;
 
-const fixedIndividualPlans: FixedPlan[] = [
-  {
-    name: 'Aula Avulsa',
-    description: 'Ideal para experimentar uma aula particular ou treinar pontualmente.',
-    credits: 1,
-    totalPriceCents: 10000,
-    validityDays: 15,
-    badge: 'Entrada',
-    badgeVariant: 'outline',
-  },
-  {
-    name: 'Pacote 4 Aulas',
-    description: 'Ótimo para manter constância e evoluir com treinos semanais.',
-    credits: 4,
-    totalPriceCents: 38000,
-    validityDays: 30,
-  },
-  {
-    name: 'Pacote 8 Aulas',
-    description: 'Mais ritmo de treino e melhor custo por aula para acelerar sua evolução.',
-    credits: 8,
-    totalPriceCents: 72000,
-    validityDays: 30,
-    badge: 'Mais escolhido',
-    badgeVariant: 'default',
-    highlight: true,
-  },
-  {
-    name: 'Pacote 12 Aulas',
-    description: 'Melhor custo-benefício para quem quer levar o treino a sério.',
-    credits: 12,
-    totalPriceCents: 100000,
-    validityDays: 45,
-    badge: 'Melhor custo-benefício',
-    badgeVariant: 'secondary',
-    reinforcement: 'Plano com maior economia total para manter constância no treino.',
-    displayUnitPriceCents: 100000 / 12,
-  },
-];
-
-const fixedDoublePlans: FixedPlan[] = [
-  {
-    name: 'Aula Dupla Avulsa',
-    description: 'Treine com um parceiro e divida a experiência em uma aula dinâmica.',
-    credits: 1,
-    totalPriceCents: 16000,
-    validityDays: 15,
-    note: 'Valor total para 2 alunos.',
-    badge: 'Entrada',
-    badgeVariant: 'outline',
-  },
-  {
-    name: 'Pacote 4 Aulas em Dupla',
-    description: 'Boa opção para manter frequência treinando em dupla.',
-    credits: 4,
-    totalPriceCents: 60000,
-    validityDays: 30,
-  },
-  {
-    name: 'Pacote 8 Aulas em Dupla',
-    description: 'Mais consistência no treino com um valor melhor por crédito.',
-    credits: 8,
-    totalPriceCents: 112000,
-    validityDays: 30,
-  },
-  {
-    name: 'Pacote 12 Aulas em Dupla',
-    description: 'Plano ideal para dupla que quer constância e melhor aproveitamento.',
-    credits: 12,
-    totalPriceCents: 156000,
-    validityDays: 45,
-    badge: 'Maior economia por aluno',
-    badgeVariant: 'default',
-    highlight: true,
-    reinforcement: 'Maior redução por aluno para dupla com foco em evolução contínua.',
-  },
-];
+const normalizePlanClassType = (rawValue: unknown): ClassType => {
+  if (rawValue === 'double') return 'double';
+  return 'individual';
+};
 
 const ruleItems: RuleItem[] = [
   {
     icon: CheckCircle2,
-    title: '1 crédito = 1 aula',
-    description: 'Cada crédito corresponde a uma aula particular.',
+    title: '1 crÃ©dito = 1 aula',
+    description: 'Cada crÃ©dito corresponde a uma aula particular.',
   },
   {
     icon: Clock3,
     title: 'Validade avulsa',
-    description: 'Aula avulsa (1 crédito) tem validade de 15 dias.',
+    description: 'Aula avulsa (1 crÃ©dito) tem validade de 15 dias.',
   },
   {
     icon: CalendarClock,
     title: 'Validade dos pacotes',
-    description: 'Compras com 2 a 9 créditos valem 30 dias; a partir de 10 créditos, 45 dias.',
+    description: 'Compras com 2 a 9 crÃ©ditos valem 30 dias; a partir de 10 crÃ©ditos, 45 dias.',
   },
   {
     icon: RefreshCcw,
-    title: 'Remarcação',
-    description: 'Permitido remarcar a aula com até 24h de antecedência.',
+    title: 'RemarcaÃ§Ã£o',
+    description: 'Permitido remarcar a aula com atÃ© 24h de antecedÃªncia.',
   },
   {
     icon: XCircle,
     title: 'Cancelamento fora do prazo',
-    description: 'Cancelamentos fora do prazo consomem o crédito.',
+    description: 'Cancelamentos fora do prazo consomem o crÃ©dito.',
   },
   {
     icon: Dumbbell,
-    title: 'Duração da aula',
-    description: 'Duração média das aulas: 50 minutos.',
+    title: 'DuraÃ§Ã£o da aula',
+    description: 'DuraÃ§Ã£o mÃ©dia das aulas: 50 minutos.',
   },
 ];
 
@@ -228,9 +152,6 @@ const getValidityDays = (credits: number) => {
   return 30;
 };
 
-const getFixedPlansByClassType = (classType: ClassType) =>
-  classType === 'individual' ? fixedIndividualPlans : fixedDoublePlans;
-
 const getFixedUnitPriceCents = (plan: FixedPlan) =>
   plan.displayUnitPriceCents ?? plan.totalPriceCents / plan.credits;
 
@@ -267,15 +188,6 @@ const calculateSavings = ({
   const perClassSavingsCents = Math.max(baseUnitPriceCents - currentUnitPriceCents, 0);
   const totalSavingsCents = Math.max(perClassSavingsCents * quantity, 0);
   return { perClassSavingsCents, totalSavingsCents };
-};
-
-const getEquivalentPlan = (quantity: number, classType: ClassType) => {
-  const fixedPlans = getFixedPlansByClassType(classType);
-  return (
-    fixedPlans.find(
-      (plan) => plan.credits === quantity && (plan.credits === 4 || plan.credits === 8 || plan.credits === 12),
-    ) || null
-  );
 };
 
 const toPurchaseData = (
@@ -316,6 +228,7 @@ const PlansPage = () => {
         .from('lesson_plans')
         .select('*')
         .eq('is_active', true)
+        .order('class_type', { ascending: true })
         .order('sort_order', { ascending: true })
         .order('credits', { ascending: true });
       if (error) throw error;
@@ -412,25 +325,53 @@ const PlansPage = () => {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const dbIndividualPlansByCredits = useMemo(() => {
-    const byCredits = new Map<number, LessonPlanRow>();
-    dbPlans.forEach((plan) => {
-      if (!byCredits.has(plan.credits)) {
-        byCredits.set(plan.credits, plan);
-      }
-    });
-    return byCredits;
-  }, [dbPlans]);
+  const fixedPlansByClassType = useMemo<Record<ClassType, FixedPlan[]>>(() => {
+    const grouped: Record<ClassType, LessonPlanRow[]> = {
+      individual: [],
+      double: [],
+    };
 
-  const adminPlansForCards = useMemo<AdminPlanCard[]>(
-    () =>
-      dbPlans.map((plan) => ({
-        ...plan,
-        validityDays: getValidityDays(plan.credits),
-        unitPriceCents: Math.round(plan.price_cents / Math.max(plan.credits, 1)),
-      })),
-    [dbPlans],
-  );
+    dbPlans.forEach((plan) => {
+      grouped[normalizePlanClassType(plan.class_type)].push(plan);
+    });
+
+    const mapPlans = (classType: ClassType) => {
+      const sorted = [...grouped[classType]].sort(
+        (a, b) => a.sort_order - b.sort_order || a.credits - b.credits || a.price_cents - b.price_cents,
+      );
+      if (!sorted.length) return [];
+
+      const minCredits = Math.min(...sorted.map((plan) => plan.credits));
+      const unitPrices = sorted.map((plan) => Math.round(plan.price_cents / Math.max(plan.credits, 1)));
+      const bestUnitPrice = Math.min(...unitPrices);
+
+      return sorted.map((plan) => {
+        const unitPriceCents = Math.round(plan.price_cents / Math.max(plan.credits, 1));
+        const isEntry = plan.credits === minCredits;
+        const isBestValue = sorted.length > 1 && unitPriceCents === bestUnitPrice && !isEntry;
+
+        return {
+          id: plan.id,
+          classType,
+          name: plan.name,
+          description: plan.description || 'Plano configurado pelo professor.',
+          credits: plan.credits,
+          totalPriceCents: plan.price_cents,
+          validityDays: getValidityDays(plan.credits),
+          badge: isEntry ? 'Entrada' : isBestValue ? 'Melhor valor' : undefined,
+          badgeVariant: isEntry ? 'outline' : isBestValue ? 'default' : undefined,
+          highlight: isBestValue,
+          note: classType === 'double' ? 'Valor total para 2 alunos.' : undefined,
+          displayUnitPriceCents: unitPriceCents,
+        } as FixedPlan;
+      });
+    };
+
+    return {
+      individual: mapPlans('individual'),
+      double: mapPlans('double'),
+    };
+  }, [dbPlans]);
 
   const customPreview = useMemo(() => {
     if (!selectedClassType) return null;
@@ -440,8 +381,8 @@ const PlansPage = () => {
     const totalPriceCents = Math.round(unitPriceCents * normalizedCredits);
     const planName =
       selectedClassType === 'individual'
-        ? `Plano personalizado individual - ${normalizedCredits} créditos`
-        : `Plano personalizado dupla - ${normalizedCredits} créditos`;
+        ? `Plano personalizado individual - ${normalizedCredits} crÃ©ditos`
+        : `Plano personalizado dupla - ${normalizedCredits} crÃ©ditos`;
 
     return toPurchaseData(
       'custom',
@@ -454,15 +395,22 @@ const PlansPage = () => {
   }, [customCredits, selectedClassType]);
 
   const equivalentCustomFixedPlan = useMemo(() => {
-    if (!selectedClassType || !customPreview) return null;
-    const equivalentPlan = getEquivalentPlan(customPreview.credits, selectedClassType);
-    if (!equivalentPlan) return null;
-    return Math.abs(equivalentPlan.totalPriceCents - customPreview.totalPriceCents) <= 1 ? equivalentPlan : null;
-  }, [selectedClassType, customPreview]);
+    if (!customPreview || !selectedClassType) return null;
+    const plans = fixedPlansByClassType[selectedClassType];
+
+    return (
+      plans.find(
+        (plan) =>
+          plan.credits === customPreview.credits && Math.abs(plan.totalPriceCents - customPreview.totalPriceCents) <= 1,
+      ) || null
+    );
+  }, [customPreview, fixedPlansByClassType, selectedClassType]);
 
   const comparisonRows = useMemo(() => {
     if (!selectedClassType) return [];
-    const fixedPlans = getFixedPlansByClassType(selectedClassType);
+    const fixedPlans = fixedPlansByClassType[selectedClassType];
+    if (!fixedPlans.length) return [];
+
     const baseUnitPriceCents = getFixedUnitPriceCents(fixedPlans[0]);
     const rows = fixedPlans.map((plan) => {
       const unitPriceCents = getFixedUnitPriceCents(plan);
@@ -484,12 +432,15 @@ const PlansPage = () => {
       savingsBarPercent:
         row.totalSavingsCents > 0 ? Math.max(12, Math.round((row.totalSavingsCents / maxTotalSavings) * 100)) : 0,
     }));
-  }, [selectedClassType]);
+  }, [fixedPlansByClassType, selectedClassType]);
 
   const highlightedPurchase = lastPurchase || customPreview;
-  const selectedFixedPlans = selectedClassType ? getFixedPlansByClassType(selectedClassType) : [];
+  const selectedFixedPlans = useMemo(
+    () => (selectedClassType ? fixedPlansByClassType[selectedClassType] : []),
+    [fixedPlansByClassType, selectedClassType],
+  );
   const baseFixedUnitPriceCents = selectedFixedPlans.length > 0 ? getFixedUnitPriceCents(selectedFixedPlans[0]) : 0;
-  const primaryPlanIndex = selectedFixedPlans.findIndex((plan) => plan.badge === 'Mais escolhido' || !!plan.highlight);
+  const primaryPlanIndex = selectedFixedPlans.findIndex((plan) => !!plan.highlight || plan.badge === 'Melhor valor');
   const focusedPlanIndex = highlightedPlanCredits
     ? selectedFixedPlans.findIndex((plan) => plan.credits === highlightedPlanCredits)
     : -1;
@@ -499,7 +450,7 @@ const PlansPage = () => {
 
     if (dbPlanId) {
       if (usedCredits > planData.credits) {
-        toast.error(`Este plano não pode ser aplicado agora, pois você já usou ${usedCredits} créditos no mês.`);
+        toast.error(`Este plano nÃ£o pode ser aplicado agora, pois vocÃª jÃ¡ usou ${usedCredits} crÃ©ditos no mÃªs.`);
         return;
       }
       choosePlanMutation.mutate(dbPlanId);
@@ -542,14 +493,14 @@ const PlansPage = () => {
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-display text-xl uppercase tracking-wider">Planos e créditos</h1>
-            <p className="text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constância.</p>
+            <h1 className="font-display text-xl uppercase tracking-wider">Planos e crÃ©ditos</h1>
+            <p className="text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constÃ¢ncia.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">
-            Créditos utilizados: {usedCredits}/{credits?.monthly_limit || 0}
+            CrÃ©ditos utilizados: {usedCredits}/{credits?.monthly_limit || 0}
           </Badge>
           <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
           {selectedPlan?.lesson_plans?.name && (
@@ -559,93 +510,23 @@ const PlansPage = () => {
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="space-y-1">
-          <h2 className="font-display text-base uppercase tracking-wider">Planos disponíveis agora</h2>
-          <p className="text-sm text-muted-foreground">
-            Novos planos criados pelo admin aparecem automaticamente aqui.
-          </p>
-        </div>
-
-        {adminPlansForCards.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
-            Ainda não há planos ativos no momento.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {adminPlansForCards.map((plan) => {
-              const isSelected = selectedPlan?.plan_id === plan.id;
-              const cannotApply = usedCredits > plan.credits;
-              const isApplying = choosePlanMutation.isPending && choosePlanMutation.variables === plan.id;
-
-              return (
-                <div key={plan.id} className="rounded-xl border border-border bg-background/50 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-base font-medium text-foreground">{plan.name}</p>
-                    {isSelected && <Badge variant="outline">Plano atual</Badge>}
-                    <Badge variant="secondary">{plan.credits} créditos</Badge>
-                  </div>
-
-                  {plan.description && (
-                    <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                  )}
-
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-md border border-border/70 bg-card p-2">
-                      <p className="text-muted-foreground">Valor total</p>
-                      <p className="font-medium text-foreground">{formatCurrencyBRL(plan.price_cents)}</p>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-card p-2">
-                      <p className="text-muted-foreground">Valor por aula</p>
-                      <p className="font-medium text-foreground">{formatCurrencyBRL(plan.unitPriceCents)}</p>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-card p-2">
-                      <p className="text-muted-foreground">Validade</p>
-                      <p className="font-medium text-foreground">{plan.validityDays} dias</p>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-card p-2">
-                      <p className="text-muted-foreground">Créditos</p>
-                      <p className="font-medium text-foreground">{plan.credits}</p>
-                    </div>
-                  </div>
-
-                  {cannotApply && (
-                    <p className="mt-3 text-xs text-destructive">
-                      Este plano não pode ser aplicado neste mês porque você já usou {usedCredits} créditos.
-                    </p>
-                  )}
-
-                  <Button
-                    onClick={() => choosePlanMutation.mutate(plan.id)}
-                    disabled={isApplying || isSelected || cannotApply}
-                    className="mt-3 w-full font-display uppercase tracking-wider"
-                  >
-                    {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Aplicar plano'}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-start gap-2">
           <Target className="mt-0.5 h-4 w-4 text-primary" />
           <div className="space-y-1">
             <h2 className="font-display text-base uppercase tracking-wider">Regras e funcionamento</h2>
             <p className="text-sm text-muted-foreground">
-              Compre seus créditos e agende direto pela plataforma, com praticidade para manter a frequência.
+              Compre seus crÃ©ditos e agende direto pela plataforma, com praticidade para manter a frequÃªncia.
             </p>
           </div>
         </div>
         {creditExpiryInfo && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
             <p className="text-sm font-medium text-foreground">
-              Seus créditos atuais expiram em {creditExpiryInfo.daysRemaining} dia
+              Seus crÃ©ditos atuais expiram em {creditExpiryInfo.daysRemaining} dia
               {creditExpiryInfo.daysRemaining === 1 ? '' : 's'} ({creditExpiryInfo.expiresAtLabel}).
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Cada compra tem validade própria a partir da data da compra. Novos créditos não acumulam prazo aos anteriores.
+              Cada compra tem validade prÃ³pria a partir da data da compra. Novos crÃ©ditos nÃ£o acumulam prazo aos anteriores.
             </p>
           </div>
         )}
@@ -667,7 +548,7 @@ const PlansPage = () => {
         <div className="space-y-1">
           <h2 className="font-display text-base uppercase tracking-wider">Escolha o tipo de aula</h2>
           <p className="text-sm text-muted-foreground">
-            Treine no seu ritmo, com planos pensados para dar consistência ao seu treino.
+            Treine no seu ritmo, com planos pensados para dar consistÃªncia ao seu treino.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -707,126 +588,131 @@ const PlansPage = () => {
               <h2 className="font-display text-base uppercase tracking-wider">
                 {selectedClassType === 'individual' ? 'Planos fixos individuais' : 'Planos fixos em dupla'}
               </h2>
-              <p className="text-sm text-muted-foreground">Quanto maior o pacote, melhor o valor por crédito.</p>
+              <p className="text-sm text-muted-foreground">Quanto maior o pacote, melhor o valor por crÃ©dito.</p>
             </div>
 
-            <PlanCarousel
-              plans={selectedFixedPlans}
-              getPlanKey={(plan) => `${selectedClassType}-${plan.credits}`}
-              primaryPlanIndex={primaryPlanIndex >= 0 ? primaryPlanIndex : undefined}
-              focusPlanIndex={focusedPlanIndex >= 0 ? focusedPlanIndex : undefined}
-              renderPlanCard={(plan, _index, slideState) => {
-                const unitPriceCents = getFixedUnitPriceCents(plan);
-                const perStudentCents = unitPriceCents / 2;
-                const dbPlan = selectedClassType === 'individual' ? dbIndividualPlansByCredits.get(plan.credits) : undefined;
-                const isSelected = dbPlan ? selectedPlan?.plan_id === dbPlan.id : false;
-                const cannotApply = usedCredits > plan.credits;
-                const isApplying = dbPlan ? choosePlanMutation.isPending && choosePlanMutation.variables === dbPlan.id : false;
-                const isDouble = selectedClassType === 'double';
-                const isHighlighted = !!plan.highlight || highlightedPlanCredits === plan.credits;
-                const isMainChosen = plan.badge === 'Mais escolhido';
-                const { totalSavingsCents } = calculateSavings({
-                  baseUnitPriceCents: baseFixedUnitPriceCents,
-                  currentUnitPriceCents: unitPriceCents,
-                  quantity: plan.credits,
-                });
+            {selectedFixedPlans.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
+                Nenhum plano ativo para {selectedClassType === 'individual' ? 'aulas individuais' : 'aulas em dupla'}.
+              </div>
+            ) : (
+              <PlanCarousel
+                plans={selectedFixedPlans}
+                getPlanKey={(plan) => plan.id}
+                primaryPlanIndex={primaryPlanIndex >= 0 ? primaryPlanIndex : undefined}
+                focusPlanIndex={focusedPlanIndex >= 0 ? focusedPlanIndex : undefined}
+                renderPlanCard={(plan, _index, slideState) => {
+                  const unitPriceCents = getFixedUnitPriceCents(plan);
+                  const perStudentCents = unitPriceCents / 2;
+                  const isSelected = selectedPlan?.plan_id === plan.id;
+                  const cannotApply = usedCredits > plan.credits;
+                  const isApplying = choosePlanMutation.isPending && choosePlanMutation.variables === plan.id;
+                  const isDouble = selectedClassType === 'double';
+                  const isHighlighted = !!plan.highlight || highlightedPlanCredits === plan.credits;
+                  const isMainChosen = plan.badge === 'Melhor valor';
+                  const { totalSavingsCents } = calculateSavings({
+                    baseUnitPriceCents: baseFixedUnitPriceCents,
+                    currentUnitPriceCents: unitPriceCents,
+                    quantity: plan.credits,
+                  });
 
-                const purchaseData = toPurchaseData(
-                  'fixed',
-                  selectedClassType,
-                  plan.credits,
-                  unitPriceCents,
-                  plan.totalPriceCents,
-                  plan.name,
-                );
+                  const purchaseData = toPurchaseData(
+                    'fixed',
+                    selectedClassType,
+                    plan.credits,
+                    unitPriceCents,
+                    plan.totalPriceCents,
+                    plan.name,
+                  );
 
-                return (
-                  <div
-                    className={`rounded-xl border bg-card p-4 transition-all animate-fade-in ${
-                      isHighlighted ? 'border-primary/60 shadow-md shadow-primary/15' : 'border-border'
-                    } ${
-                      slideState.isActive ? 'shadow-lg shadow-primary/20' : 'shadow-sm shadow-black/5'
-                    } ${
-                      isHighlighted ? 'bg-gradient-to-b from-primary/10 via-card to-card' : 'bg-gradient-to-b from-background/60 to-card'
-                    } ${isMainChosen && slideState.isActive ? 'lg:scale-[1.02]' : ''}`}
-                  >
-                    <div className="flex h-full flex-col gap-3">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-base font-medium text-foreground">{plan.name}</p>
-                          {plan.badge && (
-                            <Badge
-                              variant={plan.badgeVariant ?? 'secondary'}
-                              className="px-2 py-0 text-[10px] uppercase leading-4 tracking-wide sm:text-xs"
-                            >
-                              {plan.badge}
-                            </Badge>
-                        )}
-                        {isSelected && <Badge variant="outline">Plano atual</Badge>}
-                      </div>
+                  return (
+                    <div
+                      className={`rounded-xl border bg-card p-4 transition-all animate-fade-in ${
+                        isHighlighted ? 'border-primary/60 shadow-md shadow-primary/15' : 'border-border'
+                      } ${
+                        slideState.isActive ? 'shadow-lg shadow-primary/20' : 'shadow-sm shadow-black/5'
+                      } ${
+                        isHighlighted ? 'bg-gradient-to-b from-primary/10 via-card to-card' : 'bg-gradient-to-b from-background/60 to-card'
+                      } ${isMainChosen && slideState.isActive ? 'lg:scale-[1.02]' : ''}`}
+                    >
+                      <div className="flex h-full flex-col gap-3">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-base font-medium text-foreground">{plan.name}</p>
+                            {plan.badge && (
+                              <Badge
+                                variant={plan.badgeVariant ?? 'secondary'}
+                                className="px-2 py-0 text-[10px] uppercase leading-4 tracking-wide sm:text-xs"
+                              >
+                                {plan.badge}
+                              </Badge>
+                            )}
+                            {isSelected && <Badge variant="outline">Plano atual</Badge>}
+                          </div>
 
-                      <div>
-                        <p className="text-2xl font-semibold leading-none text-foreground">
-                          {formatCurrencyBRL(plan.totalPriceCents)}
-                          </p>
-                          <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">valor total</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                            <p className="text-[11px] text-muted-foreground">{isDouble ? 'Valor por aluno' : 'Valor por aula'}</p>
-                            <p className="font-medium text-foreground">
-                              {formatCurrencyBRL(isDouble ? perStudentCents : unitPriceCents)}
+                          <div>
+                            <p className="text-2xl font-semibold leading-none text-foreground">
+                              {formatCurrencyBRL(plan.totalPriceCents)}
                             </p>
+                            <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">valor total</p>
                           </div>
-                          <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                            <p className="text-[11px] text-muted-foreground">Créditos</p>
-                            <p className="font-medium text-foreground">{plan.credits}</p>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                              <p className="text-[11px] text-muted-foreground">{isDouble ? 'Valor por aluno' : 'Valor por aula'}</p>
+                              <p className="font-medium text-foreground">
+                                {formatCurrencyBRL(isDouble ? perStudentCents : unitPriceCents)}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                              <p className="text-[11px] text-muted-foreground">Creditos</p>
+                              <p className="font-medium text-foreground">{plan.credits}</p>
+                            </div>
+                            <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                              <p className="text-[11px] text-muted-foreground">Validade</p>
+                              <p className="font-medium text-foreground">{plan.validityDays} dias</p>
+                            </div>
+                            <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                              <p className="text-[11px] text-muted-foreground">Tipo</p>
+                              <p className="font-medium text-foreground">{getClassTypeLabel(selectedClassType)}</p>
+                            </div>
                           </div>
-                          <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                            <p className="text-[11px] text-muted-foreground">Validade</p>
-                            <p className="font-medium text-foreground">{plan.validityDays} dias</p>
-                          </div>
-                          <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                          <p className="text-[11px] text-muted-foreground">Tipo</p>
-                          <p className="font-medium text-foreground">{getClassTypeLabel(selectedClassType)}</p>
+
+                          {totalSavingsCents > 0 && (
+                            <div className="rounded-md border border-primary/30 bg-primary/10 p-2">
+                              <p className="text-[11px] text-primary">Mais aulas, menor valor por aula.</p>
+                              <p className="text-sm font-semibold text-primary">
+                                Economize{' '}
+                                <AnimatedSavingsCounter valueCents={totalSavingsCents} isActive={slideState.isActive} />
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">em relacao as aulas avulsas.</p>
+                            </div>
+                          )}
+
+                          <p className="text-sm text-muted-foreground">{plan.description}</p>
+
+                          {plan.note && <p className="text-xs text-muted-foreground">{plan.note}</p>}
+                          {plan.reinforcement && <p className="text-xs font-medium text-primary">{plan.reinforcement}</p>}
+                          {cannotApply && (
+                            <p className="text-xs text-destructive">
+                              Este plano nao pode ser aplicado neste mes porque voce ja usou {usedCredits} creditos.
+                            </p>
+                          )}
                         </div>
+
+                        <Button
+                          onClick={() => handlePurchase(purchaseData, plan.id)}
+                          disabled={isApplying || isSelected || cannotApply}
+                          className="mt-auto w-full font-display uppercase tracking-wider"
+                        >
+                          {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Comprar creditos'}
+                        </Button>
                       </div>
-
-                      {totalSavingsCents > 0 && (
-                        <div className="rounded-md border border-primary/30 bg-primary/10 p-2">
-                          <p className="text-[11px] text-primary">Mais aulas, menor valor por aula.</p>
-                          <p className="text-sm font-semibold text-primary">
-                            Economize{' '}
-                            <AnimatedSavingsCounter valueCents={totalSavingsCents} isActive={slideState.isActive} />
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">em relação às aulas avulsas.</p>
-                        </div>
-                      )}
-
-                      <p className="text-sm text-muted-foreground">{plan.description}</p>
-
-                      {plan.note && <p className="text-xs text-muted-foreground">{plan.note}</p>}
-                      {plan.reinforcement && <p className="text-xs font-medium text-primary">{plan.reinforcement}</p>}
-                      {cannotApply && dbPlan && (
-                        <p className="text-xs text-destructive">
-                            Este plano não pode ser aplicado neste mês porque você já usou {usedCredits} créditos.
-                          </p>
-                        )}
-                      </div>
-
-                      <Button
-                        onClick={() => handlePurchase(purchaseData, dbPlan?.id)}
-                        disabled={isApplying || isSelected || (cannotApply && !!dbPlan)}
-                        className="mt-auto w-full font-display uppercase tracking-wider"
-                      >
-                        {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Comprar créditos'}
-                      </Button>
                     </div>
-                  </div>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-border bg-card p-4">
@@ -835,7 +721,7 @@ const PlansPage = () => {
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <h3 className="font-display text-sm uppercase tracking-wider">Compare a economia dos planos</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Quanto mais aulas, melhor o valor por crédito.</p>
+              <p className="text-sm text-muted-foreground">Quanto mais aulas, melhor o valor por crÃ©dito.</p>
             </div>
 
             <div className="space-y-2">
@@ -844,7 +730,7 @@ const PlansPage = () => {
                 const displayUnit = isDouble ? row.unitPriceCents / 2 : row.unitPriceCents;
                 const displayUnitLabel = isDouble ? 'Valor por aluno' : 'Valor por aula';
                 const savingsPerCreditText = isDouble
-                  ? `Economia da dupla por crédito: ${formatCurrencyBRL(row.perClassSavingsCents)}`
+                  ? `Economia da dupla por crÃ©dito: ${formatCurrencyBRL(row.perClassSavingsCents)}`
                   : `Economiza ${formatCurrencyBRL(row.perClassSavingsCents)} por aula`;
 
                 return (
@@ -866,7 +752,7 @@ const PlansPage = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="mt-2 text-xs text-muted-foreground">Referência de comparação (sem economia acumulada).</p>
+                      <p className="mt-2 text-xs text-muted-foreground">ReferÃªncia de comparaÃ§Ã£o (sem economia acumulada).</p>
                     )}
                   </div>
                 );
@@ -878,15 +764,15 @@ const PlansPage = () => {
             <div className="space-y-1">
               <h2 className="font-display text-base uppercase tracking-wider">Monte seu plano</h2>
               <p className="text-sm text-muted-foreground">
-                Escolha a quantidade de aulas ideal para sua rotina. Quanto mais créditos, melhor o valor por aula.
+                Escolha a quantidade de aulas ideal para sua rotina. Quanto mais crÃ©ditos, melhor o valor por aula.
               </p>
               <p className="text-xs text-muted-foreground">
-                Os pacotes prontos oferecem a melhor visualização de custo-benefício, mas você também pode personalizar sua compra.
+                Os pacotes prontos oferecem a melhor visualizaÃ§Ã£o de custo-benefÃ­cio, mas vocÃª tambÃ©m pode personalizar sua compra.
               </p>
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="custom-credits">Quantidade de aulas / créditos</Label>
+              <Label htmlFor="custom-credits">Quantidade de aulas / crÃ©ditos</Label>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -916,7 +802,7 @@ const PlansPage = () => {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Mínimo 1 e máximo {MAX_CUSTOM_CREDITS} créditos.</p>
+              <p className="text-xs text-muted-foreground">MÃ­nimo 1 e mÃ¡ximo {MAX_CUSTOM_CREDITS} crÃ©ditos.</p>
             </div>
 
             <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -930,7 +816,7 @@ const PlansPage = () => {
                     </div>
                     <div className="rounded-md border border-primary/20 bg-background/70 p-2">
                       <p className="text-muted-foreground">Quantidade</p>
-                      <p className="font-medium text-foreground">{customPreview.credits} créditos</p>
+                      <p className="font-medium text-foreground">{customPreview.credits} crÃ©ditos</p>
                     </div>
                     <div className="rounded-md border border-primary/20 bg-background/70 p-2">
                       <p className="text-muted-foreground">
@@ -956,7 +842,7 @@ const PlansPage = () => {
                   {equivalentCustomFixedPlan && (
                     <div className="rounded-md border border-primary/40 bg-background/80 p-2">
                       <p className="text-xs font-medium text-primary">
-                        Você está no mesmo valor do pacote de {equivalentCustomFixedPlan.credits} aulas.
+                        VocÃª estÃ¡ no mesmo valor do pacote de {equivalentCustomFixedPlan.credits} aulas.
                       </p>
                       <Button
                         type="button"
@@ -978,7 +864,7 @@ const PlansPage = () => {
               onClick={() => customPreview && handlePurchase(customPreview)}
               className="w-full font-display uppercase tracking-wider sm:w-auto"
             >
-              Comprar créditos
+              Comprar crÃ©ditos
             </Button>
           </div>
 
@@ -986,7 +872,7 @@ const PlansPage = () => {
             <div className="rounded-xl border border-border bg-card p-4">
               <h2 className="font-display text-sm uppercase tracking-wider">Resumo em destaque</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Planos pensados para dar consistência ao seu treino e facilitar seu agendamento.
+                Planos pensados para dar consistÃªncia ao seu treino e facilitar seu agendamento.
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:text-sm">
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
@@ -1004,12 +890,12 @@ const PlansPage = () => {
                   <p className="font-medium text-foreground">{getClassTypeLabel(highlightedPurchase.classType)}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                  <p className="text-muted-foreground">Créditos</p>
+                  <p className="text-muted-foreground">CrÃ©ditos</p>
                   <p className="font-medium text-foreground">{highlightedPurchase.credits}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
                   <p className="text-muted-foreground">
-                    {highlightedPurchase.classType === 'double' ? 'Valor por aluno' : 'Valor unitário'}
+                    {highlightedPurchase.classType === 'double' ? 'Valor por aluno' : 'Valor unitÃ¡rio'}
                   </p>
                   <p className="font-medium text-foreground">
                     {formatCurrencyBRL(
@@ -1037,4 +923,5 @@ const PlansPage = () => {
 };
 
 export default PlansPage;
+
 
