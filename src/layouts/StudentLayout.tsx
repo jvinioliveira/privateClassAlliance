@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, Bell, UserCircle, WalletCards } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +9,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 const StudentLayout = () => {
   const { profile, user } = useAuth();
+
+  useEffect(() => {
+    if (!user || profile?.role !== 'student') return;
+
+    void supabase.rpc('notify_due_credit_expiry');
+  }, [user, profile?.role]);
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['notifications', 'unread-count', user?.id],

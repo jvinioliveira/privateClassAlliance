@@ -382,6 +382,8 @@ export type Database = {
       get_month_ref: { Args: { ts: string }; Returns: string }
       get_month_report: { Args: { p_month_ref: string }; Returns: Json }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      notify_due_credit_expiry: { Args: { p_user_id?: string }; Returns: number }
+      notify_due_credit_expiry_all: { Args: Record<PropertyKey, never>; Returns: number }
       process_waitlist: { Args: { p_slot_id: string }; Returns: undefined }
       reschedule_booking: {
         Args: { p_booking_id: string; p_new_slot_id: string }

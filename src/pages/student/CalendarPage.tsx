@@ -5,6 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import luxonPlugin from '@fullcalendar/luxon3';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { bookSlot, joinWaitlist } from '@/hooks/useSupabaseData';
@@ -12,7 +13,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, User, Clock, AlertTriangle } from 'lucide-react';
+import { Users, User, Clock, AlertTriangle, Plus } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const getMonthBounds = (monthRef: string) => {
@@ -122,6 +123,7 @@ const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: str
 
 const CalendarPage = () => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -369,6 +371,17 @@ const CalendarPage = () => {
           }}
         />
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigate('/plans')}
+        aria-label="Comprar créditos"
+        title="Comprar créditos"
+        className="credit-shortcut-animate fixed right-4 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 sm:h-14 sm:w-14"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 6.75rem)' }}
+      >
+        <Plus className="h-6 w-6 sm:h-7 sm:w-7" />
+      </button>
 
       {/* Booking Modal */}
       <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
