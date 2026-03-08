@@ -8,6 +8,8 @@ interface BottomNavItem {
   label: string;
   end?: boolean;
   badgeCount?: number;
+  avatarUrl?: string | null;
+  iconClassName?: string;
 }
 
 interface BottomNavProps {
@@ -39,7 +41,16 @@ const BottomNav = ({ items }: BottomNavProps) => {
               }
             >
               <span className="relative">
-                <item.icon className="h-[18px] w-[18px]" />
+                {item.avatarUrl ? (
+                  <img
+                    src={item.avatarUrl}
+                    alt={`Foto de perfil - ${item.label}`}
+                    className="h-6 w-6 rounded-full border border-primary/30 object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <item.icon className={cn('h-[18px] w-[18px]', item.iconClassName)} />
+                )}
                 {badgeCount > 0 && (
                   <span
                     className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground"

@@ -21,6 +21,7 @@ import StudentHomePage from "@/pages/student/StudentHomePage";
 import CalendarPage from "@/pages/student/CalendarPage";
 import MyBookingsPage from "@/pages/student/MyBookingsPage";
 import NotificationsPage from "@/pages/student/NotificationsPage";
+import NotificationsHistoryPage from "@/pages/student/NotificationsHistoryPage";
 import ProfilePage from "@/pages/student/ProfilePage";
 import PlansPage from "@/pages/student/PlansPage";
 
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/my-bookings" element={<MyBookingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/plans" element={<PlansPage />} />
             </Route>

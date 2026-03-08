@@ -37,8 +37,14 @@ const StudentLayout = () => {
     { to: '/home', icon: House, label: 'Início' },
     { to: '/calendar', icon: Calendar, label: 'Agenda' },
     { to: '/plans', icon: WalletCards, label: 'Planos' },
-    { to: '/notifications', icon: Bell, label: 'Avisos', badgeCount: unreadCount },
-    { to: '/profile', icon: UserCircle, label: 'Perfil' },
+    { to: '/notifications', icon: Bell, label: 'Notificações', badgeCount: unreadCount },
+    {
+      to: '/profile',
+      icon: UserCircle,
+      label: 'Perfil',
+      avatarUrl: profile?.avatar_url ?? null,
+      iconClassName: 'h-5 w-5',
+    },
   ];
 
   return (
@@ -60,3 +66,4 @@ const StudentLayout = () => {
 };
 
 export default StudentLayout;
+

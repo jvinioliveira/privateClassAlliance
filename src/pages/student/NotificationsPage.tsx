@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,31 +11,83 @@ import { toast } from 'sonner';
 
 type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row'];
+type DirectConversationRow = Database['public']['Tables']['direct_conversations']['Row'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 const NotificationsPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [draftMessage, setDraftMessage] = useState('');
+  const [showClosedHistory, setShowClosedHistory] = useState(false);
+
+  const { data: admins = [] } = useQuery<Pick<ProfileRow, 'id' | 'full_name'>[]>({
+    queryKey: ['chat-admin-list', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'admin')
+        .order('full_name', { ascending: true })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as Pick<ProfileRow, 'id' | 'full_name'>[];
+    },
+    enabled: !!user,
+  });
+
+  const primaryAdmin = admins[0] ?? null;
+
+  const { data: conversation } = useQuery<DirectConversationRow | null>({
+    queryKey: ['student-chat-conversation', user?.id, primaryAdmin?.id],
+    queryFn: async () => {
+      if (!user || !primaryAdmin) return null;
+      const { data, error } = await supabase
+        .from('direct_conversations')
+        .select('*')
+        .eq('student_id', user.id)
+        .eq('admin_id', primaryAdmin.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as DirectConversationRow | null;
+    },
+    enabled: !!user && !!primaryAdmin,
+  });
+
+  const chatClosed = conversation?.status === 'closed';
 
   const { data: messages = [], isLoading: loadingMessages } = useQuery<DirectMessageRow[]>({
-    queryKey: ['student-chat-messages', user?.id],
+    queryKey: ['student-chat-messages', user?.id, primaryAdmin?.id, conversation?.id, showClosedHistory],
     queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
+      if (!user || !primaryAdmin) return [];
+      if (!showClosedHistory && !conversation?.id) return [];
+
+      let query = supabase
         .from('direct_messages')
         .select('*')
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: true })
-        .limit(200);
+        .limit(300);
+
+      if (showClosedHistory) {
+        query = query.or(
+          `and(sender_id.eq.${user.id},recipient_id.eq.${primaryAdmin.id}),and(sender_id.eq.${primaryAdmin.id},recipient_id.eq.${user.id})`,
+        );
+      } else {
+        query = query.eq('conversation_id', conversation!.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!user,
+    enabled: !!user && !!primaryAdmin,
     refetchInterval: 5000,
   });
 
   const { data: notifications = [], isLoading: loadingNotifications } = useQuery<NotificationRow[]>({
-    queryKey: ['notifications', user?.id],
+    queryKey: ['notifications', user?.id, 'preview'],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -42,7 +95,7 @@ const NotificationsPage = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(6);
       if (error) throw error;
       return data ?? [];
     },
@@ -91,6 +144,30 @@ const NotificationsPage = () => {
     },
   });
 
+  const setConversationStatusMutation = useMutation({
+    mutationFn: async (status: 'open' | 'closed') => {
+      if (!primaryAdmin) throw new Error('Professor nao encontrado');
+      const { data, error } = await supabase.rpc('set_direct_conversation_status', {
+        p_other_user_id: primaryAdmin.id,
+        p_status: status,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, status) => {
+      if (status === 'open') {
+        setShowClosedHistory(false);
+      }
+      queryClient.invalidateQueries({ queryKey: ['student-chat-conversation'] });
+      queryClient.invalidateQueries({ queryKey: ['student-chat-messages'] });
+      toast.success(status === 'closed' ? 'Chat encerrado.' : 'Nova conversa iniciada.');
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar conversa';
+      toast.error(message);
+    },
+  });
+
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -111,49 +188,92 @@ const NotificationsPage = () => {
     sendMessageMutation.mutate(cleaned);
   };
 
+  const notificationPreview = notifications.slice(0, 5);
+  const hasMoreNotifications = notifications.length > 5;
+
   return (
     <div className="space-y-4 p-4">
       <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Mensagens e Notificacoes</h1>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Caixa de mensagens</h2>
-          <span className="text-xs text-muted-foreground">Chat com professor</span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Chat com professor</h2>
+            <span className="text-xs text-muted-foreground">{primaryAdmin?.full_name || 'Professor'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {chatClosed ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowClosedHistory((prev) => !prev)}
+                >
+                  {showClosedHistory ? 'Ocultar historico' : 'Ver historico'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setConversationStatusMutation.mutate('open')}
+                  disabled={setConversationStatusMutation.isPending}
+                >
+                  Iniciar nova conversa
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setConversationStatusMutation.mutate('closed')}
+                disabled={setConversationStatusMutation.isPending}
+              >
+                Encerrar chat
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
-          {loadingMessages ? (
-            <p className="text-xs text-muted-foreground">Carregando mensagens...</p>
-          ) : messages.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda. Envie a primeira mensagem para o professor.</p>
-          ) : (
-            messages.map((message) => {
-              const isMine = user?.id === message.sender_id;
-              return (
-                <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                      isMine
-                        ? 'border border-primary/20 bg-primary/10 text-foreground'
-                        : 'border border-border bg-card text-foreground'
-                    }`}
-                  >
-                    <p>{message.message}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {new Date(message.created_at).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        timeZone: 'America/Sao_Paulo',
-                      })}
-                    </p>
+        {chatClosed && !showClosedHistory ? (
+          <div className="rounded-lg border border-border bg-background/40 p-4 text-sm text-muted-foreground">
+            Chat encerrado. Use "Ver historico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
+          </div>
+        ) : (
+          <div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
+            {loadingMessages ? (
+              <p className="text-xs text-muted-foreground">Carregando mensagens...</p>
+            ) : messages.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhuma mensagem ainda. Envie a primeira mensagem para o professor.</p>
+            ) : (
+              messages.map((message) => {
+                const isMine = user?.id === message.sender_id;
+                return (
+                  <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                        isMine
+                          ? 'border border-primary/20 bg-primary/10 text-foreground'
+                          : 'border border-border bg-card text-foreground'
+                      }`}
+                    >
+                      <p>{message.message}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {new Date(message.created_at).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'America/Sao_Paulo',
+                        })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Input
@@ -162,28 +282,41 @@ const NotificationsPage = () => {
             placeholder="Digite sua mensagem para o professor"
             className="bg-background"
             maxLength={1000}
+            disabled={chatClosed}
           />
-          <Button type="button" onClick={handleSend} disabled={sendMessageMutation.isPending} className="shrink-0">
+          <Button
+            type="button"
+            onClick={handleSend}
+            disabled={sendMessageMutation.isPending || chatClosed}
+            className="shrink-0"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Notificacoes do sistema</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Notificacoes do sistema</h2>
+          {hasMoreNotifications && (
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate('/notifications/history')}>
+              Ver todas
+            </Button>
+          )}
+        </div>
 
         {loadingNotifications ? (
           <div className="flex items-center justify-center py-4">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : notifications.length === 0 ? (
+        ) : notificationPreview.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <Bell className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Nenhuma notificacao</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n) => (
+            {notificationPreview.map((n) => (
               <button
                 key={n.id}
                 type="button"
@@ -208,4 +341,3 @@ const NotificationsPage = () => {
 };
 
 export default NotificationsPage;
-

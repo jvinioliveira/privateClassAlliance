@@ -127,6 +127,7 @@ export type Database = {
       }
       direct_messages: {
         Row: {
+          conversation_id: string | null
           created_at: string
           id: string
           message: string
@@ -136,6 +137,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          conversation_id?: string | null
           created_at?: string
           id?: string
           message: string
@@ -145,6 +147,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          conversation_id?: string | null
           created_at?: string
           id?: string
           message?: string
@@ -155,6 +158,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "direct_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "direct_messages_recipient_id_fkey"
             columns: ["recipient_id"]
             isOneToOne: false
@@ -164,6 +174,61 @@ export type Database = {
           {
             foreignKeyName: "direct_messages_sender_id_fkey"
             columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_conversations: {
+        Row: {
+          admin_id: string
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversations_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversations_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversations_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -499,6 +564,10 @@ export type Database = {
       send_message_to_admins: { Args: { p_message: string }; Returns: number }
       send_message_to_student: {
         Args: { p_message: string; p_student_id: string }
+        Returns: string
+      }
+      set_direct_conversation_status: {
+        Args: { p_other_user_id: string; p_status: string }
         Returns: string
       }
       submit_student_feedback: {

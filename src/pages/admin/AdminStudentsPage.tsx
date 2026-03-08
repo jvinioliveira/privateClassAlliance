@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 type StudentProfile = Database['public']['Tables']['profiles']['Row'];
 type StudentCredit = Database['public']['Tables']['student_month_credits']['Row'];
 type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row'];
+type DirectConversationRow = Database['public']['Tables']['direct_conversations']['Row'];
 type FeedbackRow = Database['public']['Tables']['student_feedback_submissions']['Row'];
 type FeedbackWithStudent = FeedbackRow & {
   profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name'> | null;
@@ -34,6 +35,7 @@ const AdminStudentsPage = () => {
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [chatStudent, setChatStudent] = useState<StudentProfile | null>(null);
   const [chatDraft, setChatDraft] = useState('');
+  const [showClosedHistory, setShowClosedHistory] = useState(false);
   const [monthInput, setMonthInput] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -93,24 +95,54 @@ const AdminStudentsPage = () => {
     return counts;
   }, [unreadMessages]);
 
+  const { data: chatConversation } = useQuery<DirectConversationRow | null>({
+    queryKey: ['admin-student-chat-conversation', user?.id, chatStudent?.id],
+    queryFn: async () => {
+      if (!user || !chatStudent) return null;
+      const { data, error } = await supabase
+        .from('direct_conversations')
+        .select('*')
+        .eq('student_id', chatStudent.id)
+        .eq('admin_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as DirectConversationRow | null;
+    },
+    enabled: !!user && !!chatStudent,
+    refetchInterval: chatStudent ? 5000 : false,
+  });
+
   const { data: chatMessages = [] } = useQuery<DirectMessageRow[]>({
-    queryKey: ['admin-student-chat-thread', user?.id, chatStudent?.id],
+    queryKey: ['admin-student-chat-thread', user?.id, chatStudent?.id, chatConversation?.id, showClosedHistory],
     queryFn: async () => {
       if (!user || !chatStudent) return [];
-      const { data, error } = await supabase
+      if (!showClosedHistory && !chatConversation?.id) return [];
+
+      let query = supabase
         .from('direct_messages')
         .select('*')
-        .or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${chatStudent.id}),and(sender_id.eq.${chatStudent.id},recipient_id.eq.${user.id})`,
-        )
         .order('created_at', { ascending: true })
         .limit(300);
+
+      if (showClosedHistory) {
+        query = query.or(
+          `and(sender_id.eq.${user.id},recipient_id.eq.${chatStudent.id}),and(sender_id.eq.${chatStudent.id},recipient_id.eq.${user.id})`,
+        );
+      } else {
+        query = query.eq('conversation_id', chatConversation!.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },
     enabled: !!user && !!chatStudent,
     refetchInterval: chatStudent ? 5000 : false,
   });
+
+  const chatClosed = chatConversation?.status === 'closed';
 
   useEffect(() => {
     if (!chatStudent || !user) return;
@@ -132,6 +164,10 @@ const AdminStudentsPage = () => {
 
     markRead();
   }, [chatMessages, chatStudent, queryClient, user]);
+
+  useEffect(() => {
+    setShowClosedHistory(false);
+  }, [chatStudent?.id]);
 
   const { data: feedbacks = [] } = useQuery<FeedbackWithStudent[]>({
     queryKey: ['admin-student-feedbacks'],
@@ -189,6 +225,31 @@ const AdminStudentsPage = () => {
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : 'Erro ao enviar mensagem';
+      toast.error(message);
+    },
+  });
+
+  const setConversationStatusMutation = useMutation({
+    mutationFn: async (status: 'open' | 'closed') => {
+      if (!chatStudent) throw new Error('Aluno nao encontrado');
+      const { data, error } = await supabase.rpc('set_direct_conversation_status', {
+        p_other_user_id: chatStudent.id,
+        p_status: status,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, status) => {
+      if (status === 'open') {
+        setShowClosedHistory(false);
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin-student-chat-conversation'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-student-chat-thread'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-student-chat-unread'] });
+      toast.success(status === 'closed' ? 'Chat encerrado.' : 'Nova conversa iniciada.');
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar conversa';
       toast.error(message);
     },
   });
@@ -341,6 +402,7 @@ const AdminStudentsPage = () => {
           if (!open) {
             setChatStudent(null);
             setChatDraft('');
+            setShowClosedHistory(false);
           }
         }}
       >
@@ -352,37 +414,81 @@ const AdminStudentsPage = () => {
           </DialogHeader>
 
           <div className="space-y-3">
-            <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
-              {chatMessages.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma mensagem com este aluno ainda.</p>
-              ) : (
-                chatMessages.map((message) => {
-                  const isMine = message.sender_id === user?.id;
-                  return (
-                    <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                          isMine
-                            ? 'border border-primary/20 bg-primary/10 text-foreground'
-                            : 'border border-border bg-card text-foreground'
-                        }`}
-                      >
-                        <p>{message.message}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {new Date(message.created_at).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            timeZone: 'America/Sao_Paulo',
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {chatClosed ? 'Conversa encerrada.' : 'Conversa ativa.'}
+              </p>
+              <div className="flex items-center gap-2">
+                {chatClosed ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowClosedHistory((prev) => !prev)}
+                    >
+                      {showClosedHistory ? 'Ocultar historico' : 'Ver historico'}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setConversationStatusMutation.mutate('open')}
+                      disabled={setConversationStatusMutation.isPending}
+                    >
+                      Iniciar nova conversa
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setConversationStatusMutation.mutate('closed')}
+                    disabled={setConversationStatusMutation.isPending}
+                  >
+                    Encerrar chat
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {chatClosed && !showClosedHistory ? (
+              <div className="rounded-lg border border-border bg-background/40 p-4 text-sm text-muted-foreground">
+                Chat encerrado. Use "Ver historico" para consultar mensagens antigas ou "Iniciar nova conversa" para continuar.
+              </div>
+            ) : (
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-background/40 p-3">
+                {chatMessages.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhuma mensagem com este aluno ainda.</p>
+                ) : (
+                  chatMessages.map((message) => {
+                    const isMine = message.sender_id === user?.id;
+                    return (
+                      <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                            isMine
+                              ? 'border border-primary/20 bg-primary/10 text-foreground'
+                              : 'border border-border bg-card text-foreground'
+                          }`}
+                        >
+                          <p>{message.message}</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {new Date(message.created_at).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              timeZone: 'America/Sao_Paulo',
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
             <Textarea
               value={chatDraft}
@@ -390,12 +496,13 @@ const AdminStudentsPage = () => {
               placeholder="Digite a mensagem para o aluno"
               className="min-h-20 bg-background"
               maxLength={1000}
+              disabled={chatClosed}
             />
 
             <Button
               type="button"
               onClick={() => sendChatMutation.mutate()}
-              disabled={sendChatMutation.isPending}
+              disabled={sendChatMutation.isPending || chatClosed}
               className="w-full"
             >
               {sendChatMutation.isPending ? 'Enviando...' : 'Enviar mensagem'}
