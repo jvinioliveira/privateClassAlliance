@@ -21,6 +21,7 @@ export interface Booking {
   student_id: string;
   status: 'booked' | 'cancelled' | 'completed' | 'no_show';
   seats_reserved: number;
+  partner_name?: string | null;
   created_by_admin: boolean;
   attendance_status: 'pending' | 'present' | 'absent';
   checked_in_at: string | null;
@@ -206,10 +207,11 @@ export const useNotifications = () => {
 };
 
 // RPC calls
-export const bookSlot = async (slotId: string, seatsReserved: number) => {
+export const bookSlot = async (slotId: string, seatsReserved: number, partnerName?: string | null) => {
   const { data, error } = await supabase.rpc('book_slot', {
     p_slot_id: slotId,
     p_seats_reserved: seatsReserved,
+    p_partner_name: partnerName ?? null,
   });
   if (error) throw error;
   return data;

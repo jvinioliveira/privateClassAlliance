@@ -31,4 +31,5 @@ export interface ProgressStats {
   streakWeeks: number;
   recentFrequency: number;
   monthlyLimit: number;
+  weeklySeries: number[];
 }

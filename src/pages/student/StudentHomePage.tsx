@@ -275,9 +275,19 @@ const StudentHomePage = () => {
       (date) => date.getFullYear() === year && date.getMonth() + 1 === month,
     ).length;
 
-    const limitDate = new Date();
-    limitDate.setDate(limitDate.getDate() - 28);
-    const recentFrequency = completedDates.filter((date) => date.getTime() >= limitDate.getTime()).length;
+    const nowMs = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const lookbackStartMs = nowMs - 28 * dayMs;
+    const weeklySeries = [0, 0, 0, 0];
+
+    completedDates.forEach((date) => {
+      const time = date.getTime();
+      if (time < lookbackStartMs || time > nowMs) return;
+      const bucket = Math.min(3, Math.floor((time - lookbackStartMs) / (7 * dayMs)));
+      weeklySeries[bucket] += 1;
+    });
+
+    const recentFrequency = weeklySeries.reduce((acc, value) => acc + value, 0);
 
     return {
       totalCompleted: completed.length,
@@ -285,6 +295,7 @@ const StudentHomePage = () => {
       streakWeeks: calculateStreakWeeks(completedDates),
       recentFrequency,
       monthlyLimit,
+      weeklySeries,
     };
   }, [bookings, monthRef, monthlyLimit]);
 

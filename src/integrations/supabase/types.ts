@@ -63,6 +63,7 @@ export type Database = {
           created_at: string
           created_by_admin: boolean
           id: string
+          partner_name: string | null
           seats_reserved: number
           slot_id: string
           status: string
@@ -76,6 +77,7 @@ export type Database = {
           created_at?: string
           created_by_admin?: boolean
           id?: string
+          partner_name?: string | null
           seats_reserved: number
           slot_id: string
           status?: string
@@ -89,6 +91,7 @@ export type Database = {
           created_at?: string
           created_by_admin?: boolean
           id?: string
+          partner_name?: string | null
           seats_reserved?: number
           slot_id?: string
           status?: string
@@ -374,7 +377,7 @@ export type Database = {
         Returns: undefined
       }
       book_slot: {
-        Args: { p_seats_reserved: number; p_slot_id: string }
+        Args: { p_partner_name?: string | null; p_seats_reserved: number; p_slot_id: string }
         Returns: string
       }
       choose_plan: {

@@ -89,9 +89,14 @@ const ruleItems: RuleItem[] = [
     description: 'Cada crédito corresponde a uma aula particular.',
   },
   {
+    icon: Clock3,
+    title: 'Validade avulsa',
+    description: 'Aula avulsa (1 crédito) tem validade de 15 dias.',
+  },
+  {
     icon: CalendarClock,
-    title: 'Validade por compra',
-    description: 'Cada compra de créditos tem validade de 30 dias a partir da data da compra.',
+    title: 'Validade dos pacotes',
+    description: 'Compras de 2 a 9 créditos valem 30 dias; com 10+ créditos, validade de 45 dias.',
   },
   {
     icon: RefreshCcw,
@@ -130,7 +135,11 @@ const clampCredits = (value: number) => {
   return Math.min(MAX_CUSTOM_CREDITS, Math.max(1, Math.trunc(value)));
 };
 
-const getValidityDays = (_credits: number) => 30;
+const getValidityDays = (credits: number) => {
+  if (credits === 1) return 15;
+  if (credits >= 10) return 45;
+  return 30;
+};
 
 const getFixedUnitPriceCents = (plan: FixedPlan) =>
   plan.displayUnitPriceCents ?? plan.totalPriceCents / plan.credits;
@@ -496,7 +505,7 @@ const PlansPage = () => {
               {creditExpiryInfo.expiresAtLabel}).
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Créditos acumulam no seu saldo, mas cada compra mantém validade própria de 30 dias.
+              Créditos acumulam no seu saldo, e a validade é renovada pela maior data entre o saldo atual e a nova compra.
             </p>
           </div>
         )}

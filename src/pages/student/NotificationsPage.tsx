@@ -48,13 +48,13 @@ const NotificationsPage = () => {
   return (
     <div className="space-y-4 p-4">
       <h1 className="font-display text-xl uppercase tracking-wider text-foreground">
-        Notificações
+        NotificaÃ§Ãµes
       </h1>
 
       {notifications.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <Bell className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-muted-foreground">Nenhuma notificação</p>
+          <p className="text-muted-foreground">Nenhuma notificaÃ§Ã£o</p>
         </div>
       ) : (
         <div className="space-y-2">
