@@ -1,18 +1,29 @@
 ﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { cancelBooking, adminCheckIn } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { CheckCircle, XCircle, Clock, Users, User } from 'lucide-react';
+
+type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type StudentRef = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'>;
+type BookingWithRelations = BookingRow & {
+  availability_slots: SlotRow | null;
+  profiles: StudentRef | null;
+};
+type BookingItem = BookingRow & { slot: SlotRow | null; student: StudentRef | null };
+type BadgeVariant = NonNullable<ComponentProps<typeof Badge>['variant']>;
 
 const AdminBookingsPage = () => {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('booked');
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading } = useQuery<BookingItem[]>({
     queryKey: ['admin-all-bookings', statusFilter],
     queryFn: async () => {
       let query = supabase
@@ -27,7 +38,8 @@ const AdminBookingsPage = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data.map((b: any) => ({
+      const rows = (data ?? []) as BookingWithRelations[];
+      return rows.map((b) => ({
         ...b,
         slot: b.availability_slots,
         student: b.profiles,
@@ -41,7 +53,10 @@ const AdminBookingsPage = () => {
       toast.success('Cancelado');
       queryClient.invalidateQueries({ queryKey: ['admin-all-bookings'] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao cancelar';
+      toast.error(message);
+    },
   });
 
   const checkInMut = useMutation({
@@ -50,10 +65,13 @@ const AdminBookingsPage = () => {
       toast.success('Presença registrada');
       queryClient.invalidateQueries({ queryKey: ['admin-all-bookings'] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao registrar presença';
+      toast.error(message);
+    },
   });
 
-  const statusColors: Record<string, string> = {
+  const statusColors: Record<string, BadgeVariant> = {
     booked: 'default',
     completed: 'secondary',
     cancelled: 'destructive',
@@ -95,7 +113,7 @@ const AdminBookingsPage = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {bookings.map((b: any) => (
+          {bookings.map((b) => (
             <div key={b.id} className="rounded-xl border border-border bg-card p-4 animate-fade-in">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
@@ -115,7 +133,7 @@ const AdminBookingsPage = () => {
                       })}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant={statusColors[b.status] as any}>{statusLabels[b.status] || b.status}</Badge>
+                    <Badge variant={statusColors[b.status] ?? 'secondary'}>{statusLabels[b.status] || b.status}</Badge>
                     <Badge variant="secondary">{b.seats_reserved === 2 ? 'Dupla' : 'Individual'}</Badge>
                     {b.created_by_admin && <Badge variant="outline">Lote</Badge>}
                   </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { getMonthReport } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
@@ -6,17 +6,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BarChart3, TrendingUp, UserX, XCircle, CheckCircle } from 'lucide-react';
 
+type ReportData = {
+  total_booked: number;
+  total_completed: number;
+  total_no_show: number;
+  total_cancelled: number;
+  occupation_rate: number;
+};
+
+const isReportData = (value: unknown): value is ReportData => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.total_booked === 'number' &&
+    typeof candidate.total_completed === 'number' &&
+    typeof candidate.total_no_show === 'number' &&
+    typeof candidate.total_cancelled === 'number' &&
+    typeof candidate.occupation_rate === 'number'
+  );
+};
+
 const AdminReportsPage = () => {
   const [monthInput, setMonthInput] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<ReportData | null>(null);
 
   const reportMutation = useMutation({
     mutationFn: () => getMonthReport(`${monthInput}-01`),
-    onSuccess: (data) => setReport(data),
-    onError: (err: any) => setReport(null),
+    onSuccess: (data) => {
+      setReport(isReportData(data) ? data : null);
+    },
+    onError: () => setReport(null),
   });
 
   const cards = report
@@ -25,7 +48,7 @@ const AdminReportsPage = () => {
         { label: 'Concluídas', value: report.total_completed, icon: CheckCircle, color: 'text-green-500' },
         { label: 'Faltas', value: report.total_no_show, icon: UserX, color: 'text-destructive' },
         { label: 'Canceladas', value: report.total_cancelled, icon: XCircle, color: 'text-muted-foreground' },
-        { label: 'Taxa ocupação', value: `${report.occupation_rate}%`, icon: TrendingUp, color: 'text-primary' },
+        { label: 'Taxa de ocupação', value: `${report.occupation_rate}%`, icon: TrendingUp, color: 'text-primary' },
       ]
     : [];
 

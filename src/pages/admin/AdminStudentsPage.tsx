@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -115,7 +115,7 @@ const AdminStudentsPage = () => {
                   <div>
                     <p className="text-sm font-medium break-words">{s.full_name || 'Sem nome'}</p>
                     <p className="text-xs text-muted-foreground">
-                      Limite: {credit?.monthly_limit || 0} aulas/mês
+                      Limite: {credit?.monthly_limit || 0} aulas/Mês
                     </p>
                   </div>
                 </div>
@@ -140,13 +140,13 @@ const AdminStudentsPage = () => {
         <DialogContent className="bg-card border-border sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-display uppercase tracking-wider">
-              Definir créditos
+              Definir Créditos
             </DialogTitle>
           </DialogHeader>
           {selectedStudent && (
             <div className="space-y-4">
               <p className="text-sm text-foreground">
-                {selectedStudent.full_name} — {monthInput}
+                {selectedStudent.full_name} - {monthInput}
               </p>
               <div className="space-y-1">
                 <Label>Limite mensal de aulas</Label>
@@ -174,3 +174,5 @@ const AdminStudentsPage = () => {
 };
 
 export default AdminStudentsPage;
+
+

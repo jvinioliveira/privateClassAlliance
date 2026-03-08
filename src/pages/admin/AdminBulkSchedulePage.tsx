@@ -1,6 +1,7 @@
 ﻿import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { adminBulkBook } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
+import type { DatesSetArg, EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -16,6 +18,14 @@ import luxonPlugin from '@fullcalendar/luxon3';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type SlotTime = { start_time: string; end_time: string };
+type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
+type StudentRow = Database['public']['Tables']['profiles']['Row'];
+type BulkBookResult = {
+  slot_id: string;
+  success: boolean;
+  booking_id?: string;
+  error?: string;
+};
 
 const getSlotTimeParts = (isoDate: string) => {
   const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -101,9 +111,9 @@ const AdminBulkSchedulePage = () => {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<BulkBookResult[]>([]);
 
-  const { data: students = [] } = useQuery({
+  const { data: students = [] } = useQuery<StudentRow[]>({
     queryKey: ['admin-students-list'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -112,11 +122,11 @@ const AdminBulkSchedulePage = () => {
         .eq('role', 'student')
         .order('full_name');
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  const { data: slots = [] } = useQuery({
+  const { data: slots = [] } = useQuery<SlotRow[]>({
     queryKey: ['bulk-slots', dateRange.start, dateRange.end],
     queryFn: async () => {
       if (!dateRange.start) return [];
@@ -128,7 +138,7 @@ const AdminBulkSchedulePage = () => {
         .eq('status', 'available')
         .order('start_time');
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!dateRange.start,
   });
@@ -152,15 +162,19 @@ const AdminBulkSchedulePage = () => {
   const bulkMutation = useMutation({
     mutationFn: () => adminBulkBook(selectedStudentId, selectedSlotIds, 1),
     onSuccess: (data) => {
-      setResults(data as any[]);
-      const successes = (data as any[]).filter((r: any) => r.success).length;
+      const rows = Array.isArray(data) ? (data as BulkBookResult[]) : [];
+      setResults(rows);
+      const successes = rows.filter((r) => r.success).length;
       toast.success(`${successes} de ${selectedSlotIds.length} aulas agendadas`);
       setSelectedSlotIds([]);
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao agendar em lote';
+      toast.error(message);
+    },
   });
 
-  const handleEventClick = (info: any) => {
+  const handleEventClick = (info: EventClickArg) => {
     const id = info.event.id;
     setSelectedSlotIds((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
@@ -179,7 +193,7 @@ const AdminBulkSchedulePage = () => {
               <SelectValue placeholder="Escolha um aluno" />
             </SelectTrigger>
             <SelectContent>
-              {students.map((s: any) => (
+              {students.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.full_name || 'Sem nome'}
                 </SelectItem>
@@ -210,7 +224,7 @@ const AdminBulkSchedulePage = () => {
           slotMaxTime={calendarWindow.slotMaxTime}
           events={events}
           eventClick={handleEventClick}
-          datesSet={(info) => setDateRange({ start: info.startStr, end: info.endStr })}
+          datesSet={(info: DatesSetArg) => setDateRange({ start: info.startStr, end: info.endStr })}
           height="auto"
           eventDisplay="block"
           buttonText={{ week: 'Semana', day: 'Dia' }}
@@ -232,7 +246,7 @@ const AdminBulkSchedulePage = () => {
       {results.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-display text-lg uppercase tracking-wider">Resultado</h2>
-          {results.map((r: any, i: number) => (
+          {results.map((r, i) => (
             <div key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-3">
               {r.success ? (
                 <CheckCircle className="h-4 w-4 text-green-500" />

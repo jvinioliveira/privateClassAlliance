@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -55,6 +55,11 @@ type PurchasePlanData = {
   planName: string;
   unitPriceCents: number;
   totalPriceCents: number;
+};
+
+type AdminPlanCard = LessonPlanRow & {
+  validityDays: number;
+  unitPriceCents: number;
 };
 
 type SelectedPlanData = {
@@ -318,6 +323,23 @@ const PlansPage = () => {
     },
   });
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('student-lesson-plans-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lesson_plans' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['student-lesson-plans'] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const { data: selectedPlan } = useQuery({
     queryKey: ['selected-plan', user?.id, monthRef],
     queryFn: async () => {
@@ -399,6 +421,16 @@ const PlansPage = () => {
     });
     return byCredits;
   }, [dbPlans]);
+
+  const adminPlansForCards = useMemo<AdminPlanCard[]>(
+    () =>
+      dbPlans.map((plan) => ({
+        ...plan,
+        validityDays: getValidityDays(plan.credits),
+        unitPriceCents: Math.round(plan.price_cents / Math.max(plan.credits, 1)),
+      })),
+    [dbPlans],
+  );
 
   const customPreview = useMemo(() => {
     if (!selectedClassType) return null;
@@ -524,6 +556,76 @@ const PlansPage = () => {
             <Badge variant="outline">Plano atual: {selectedPlan.lesson_plans.name}</Badge>
           )}
         </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-1">
+          <h2 className="font-display text-base uppercase tracking-wider">Planos disponíveis agora</h2>
+          <p className="text-sm text-muted-foreground">
+            Novos planos criados pelo admin aparecem automaticamente aqui.
+          </p>
+        </div>
+
+        {adminPlansForCards.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
+            Ainda não há planos ativos no momento.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {adminPlansForCards.map((plan) => {
+              const isSelected = selectedPlan?.plan_id === plan.id;
+              const cannotApply = usedCredits > plan.credits;
+              const isApplying = choosePlanMutation.isPending && choosePlanMutation.variables === plan.id;
+
+              return (
+                <div key={plan.id} className="rounded-xl border border-border bg-background/50 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-medium text-foreground">{plan.name}</p>
+                    {isSelected && <Badge variant="outline">Plano atual</Badge>}
+                    <Badge variant="secondary">{plan.credits} créditos</Badge>
+                  </div>
+
+                  {plan.description && (
+                    <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-md border border-border/70 bg-card p-2">
+                      <p className="text-muted-foreground">Valor total</p>
+                      <p className="font-medium text-foreground">{formatCurrencyBRL(plan.price_cents)}</p>
+                    </div>
+                    <div className="rounded-md border border-border/70 bg-card p-2">
+                      <p className="text-muted-foreground">Valor por aula</p>
+                      <p className="font-medium text-foreground">{formatCurrencyBRL(plan.unitPriceCents)}</p>
+                    </div>
+                    <div className="rounded-md border border-border/70 bg-card p-2">
+                      <p className="text-muted-foreground">Validade</p>
+                      <p className="font-medium text-foreground">{plan.validityDays} dias</p>
+                    </div>
+                    <div className="rounded-md border border-border/70 bg-card p-2">
+                      <p className="text-muted-foreground">Créditos</p>
+                      <p className="font-medium text-foreground">{plan.credits}</p>
+                    </div>
+                  </div>
+
+                  {cannotApply && (
+                    <p className="mt-3 text-xs text-destructive">
+                      Este plano não pode ser aplicado neste mês porque você já usou {usedCredits} créditos.
+                    </p>
+                  )}
+
+                  <Button
+                    onClick={() => choosePlanMutation.mutate(plan.id)}
+                    disabled={isApplying || isSelected || cannotApply}
+                    className="mt-3 w-full font-display uppercase tracking-wider"
+                  >
+                    {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Aplicar plano'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">

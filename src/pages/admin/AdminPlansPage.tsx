@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -278,7 +278,7 @@ const AdminPlansPage = () => {
                     <Badge variant={plan.is_active ? 'default' : 'outline'}>
                       {plan.is_active ? 'Ativo' : 'Inativo'}
                     </Badge>
-                    <Badge variant="secondary">{plan.credits} créditos</Badge>
+                    <Badge variant="secondary">{plan.credits} Créditos</Badge>
                   </div>
                   {plan.description && (
                     <p className="text-sm text-muted-foreground">{plan.description}</p>
@@ -316,3 +316,5 @@ const AdminPlansPage = () => {
 };
 
 export default AdminPlansPage;
+
+

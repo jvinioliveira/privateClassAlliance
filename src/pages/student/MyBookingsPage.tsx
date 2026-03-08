@@ -1,15 +1,21 @@
-ï»¿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, X, AlertCircle } from 'lucide-react';
+
+type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type BookingWithSlot = BookingRow & { slot: SlotRow | null };
+type BookingWithSlotRelation = BookingRow & { availability_slots: SlotRow | null };
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   booked: { label: 'Agendada', variant: 'default' },
-  completed: { label: 'ConcluÃ­da', variant: 'secondary' },
+  completed: { label: 'Concluída', variant: 'secondary' },
   cancelled: { label: 'Cancelada', variant: 'destructive' },
   no_show: { label: 'Falta', variant: 'outline' },
 };
@@ -18,7 +24,7 @@ const MyBookingsPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading } = useQuery<BookingWithSlot[]>({
     queryKey: ['my-bookings', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -28,7 +34,9 @@ const MyBookingsPage = () => {
         .eq('student_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data.map((b: any) => ({ ...b, slot: b.availability_slots }));
+
+      const rows = (data ?? []) as BookingWithSlotRelation[];
+      return rows.map((b) => ({ ...b, slot: b.availability_slots }));
     },
     enabled: !!user,
   });
@@ -40,7 +48,10 @@ const MyBookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['used-credits'] });
     },
-    onError: (err: any) => toast.error(err.message || 'Erro ao cancelar'),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao cancelar';
+      toast.error(message);
+    },
   });
 
   const canCancel = (slotStartTime: string) => {
@@ -69,7 +80,7 @@ const MyBookingsPage = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {bookings.map((booking: any) => {
+          {bookings.map((booking) => {
             const status = statusMap[booking.status] || statusMap.booked;
             return (
               <div
@@ -88,7 +99,7 @@ const MyBookingsPage = () => {
                             month: '2-digit',
                             timeZone: 'America/Sao_Paulo',
                           }).replace(/\./g, '')}{' '}
-                        Ã s{' '}
+                        às{' '}
                         {booking.slot &&
                           new Date(booking.slot.start_time).toLocaleTimeString('pt-BR', {
                             hour: '2-digit',
@@ -121,7 +132,7 @@ const MyBookingsPage = () => {
                 {booking.status === 'booked' && booking.slot && !canCancel(booking.slot.start_time) && (
                   <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    Cancelamento indisponÃ­vel (menos de 24h)
+                    Cancelamento indisponível (menos de 24h)
                   </p>
                 )}
               </div>
@@ -134,4 +145,3 @@ const MyBookingsPage = () => {
 };
 
 export default MyBookingsPage;
-

@@ -96,7 +96,7 @@ const AdminSlotsPage = () => {
     mutationFn: async () => {
       if (!date || !time) throw new Error('Preencha data e horário.');
       if (duration <= 0) throw new Error('Duração inválida.');
-      if (capacity <= 0) throw new Error('Capacidade invalida.');
+      if (capacity <= 0) throw new Error('Capacidade inválida.');
 
       const startTime = buildSaoPauloDateTime(date, time);
       const endTime = startTime.plus({ minutes: duration });
@@ -125,7 +125,7 @@ const AdminSlotsPage = () => {
         throw new Error('Preencha horário e período da recorrência.');
       }
       if (duration <= 0) throw new Error('Duração inválida.');
-      if (recCapacity <= 0) throw new Error('Capacidade invalida.');
+      if (recCapacity <= 0) throw new Error('Capacidade inválida.');
 
       const startDate = DateTime.fromISO(recStartDate, { zone: SAO_PAULO_TZ }).startOf('day');
       const endDate = DateTime.fromISO(recEndDate, { zone: SAO_PAULO_TZ }).startOf('day');
@@ -181,7 +181,7 @@ const AdminSlotsPage = () => {
       if (batchAction === 'edit') {
         if (!batchNewTime) throw new Error('Informe o novo horário.');
         if (batchDuration <= 0) throw new Error('Duração inválida.');
-        if (batchCapacity <= 0) throw new Error('Capacidade invalida.');
+        if (batchCapacity <= 0) throw new Error('Capacidade inválida.');
       }
 
       const { data, error } = await supabase

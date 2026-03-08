@@ -1,13 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell } from 'lucide-react';
+
+type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
 const NotificationsPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], isLoading } = useQuery({
+  const { data: notifications = [], isLoading } = useQuery<NotificationRow[]>({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -18,7 +21,7 @@ const NotificationsPage = () => {
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!user,
   });
@@ -45,17 +48,17 @@ const NotificationsPage = () => {
   return (
     <div className="space-y-4 p-4">
       <h1 className="font-display text-xl uppercase tracking-wider text-foreground">
-        NotificaÃ§Ãµes
+        Notificações
       </h1>
 
       {notifications.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center">
           <Bell className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-muted-foreground">Nenhuma notificaÃ§Ã£o</p>
+          <p className="text-muted-foreground">Nenhuma notificação</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {notifications.map((n: any) => (
+          {notifications.map((n) => (
             <button
               key={n.id}
               type="button"

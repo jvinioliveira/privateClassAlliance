@@ -5,8 +5,11 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import luxonPlugin from '@fullcalendar/luxon3';
+import type { DateClickArg } from '@fullcalendar/interaction';
+import type { DatesSetArg, EventClickArg, EventContentArg } from '@fullcalendar/core';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { bookSlot, joinWaitlist } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
@@ -28,6 +31,9 @@ const getMonthBounds = (monthRef: string) => {
 };
 
 type SlotTime = { start_time: string; end_time: string };
+type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type SelectedSlot = SlotRow & { freeSeats: number; isMine: boolean; isFull: boolean };
 
 const getSlotTimeParts = (isoDate: string) => {
   const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -127,7 +133,7 @@ const CalendarPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [bookingType, setBookingType] = useState<1 | 2>(1);
 
   // Current month ref for credits
@@ -172,7 +178,7 @@ const CalendarPage = () => {
   });
 
   // Slots
-  const { data: slots = [] } = useQuery({
+  const { data: slots = [] } = useQuery<SlotRow[]>({
     queryKey: ['slots', dateRange.start, dateRange.end],
     queryFn: async () => {
       if (!dateRange.start) return [];
@@ -184,7 +190,7 @@ const CalendarPage = () => {
         .eq('status', 'available')
         .order('start_time');
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!dateRange.start,
   });
@@ -193,7 +199,7 @@ const CalendarPage = () => {
 
   // Bookings for these slots
   const slotIds = slots.map((s) => s.id);
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [] } = useQuery<BookingRow[]>({
     queryKey: ['bookings-for-slots', slotIds],
     queryFn: async () => {
       if (!slotIds.length) return [];
@@ -203,7 +209,7 @@ const CalendarPage = () => {
         .in('slot_id', slotIds)
         .eq('status', 'booked');
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: slotIds.length > 0,
   });
@@ -247,7 +253,7 @@ const CalendarPage = () => {
     });
   }, [slots, bookings, user]);
 
-  const renderEventContent = (eventInfo: any) => {
+  const renderEventContent = (eventInfo: EventContentArg) => {
     const { timeLabel, statusLabel } = eventInfo.event.extendedProps as {
       timeLabel: string;
       statusLabel: string;
@@ -272,8 +278,9 @@ const CalendarPage = () => {
       queryClient.invalidateQueries({ queryKey: ['used-credits'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Erro ao agendar');
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao agendar';
+      toast.error(message);
     },
   });
 
@@ -283,25 +290,26 @@ const CalendarPage = () => {
       toast.success('Adicionado à lista de espera!');
       setSelectedSlot(null);
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Erro ao entrar na lista');
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Erro ao entrar na lista';
+      toast.error(message);
     },
   });
 
-  const handleEventClick = (info: any) => {
+  const handleEventClick = (info: EventClickArg) => {
     const { slot, freeSeats, isMine, isFull } = info.event.extendedProps;
     setSelectedSlot({ ...slot, freeSeats, isMine, isFull });
     setBookingType(1);
   };
 
-  const handleDatesSet = (dateInfo: any) => {
+  const handleDatesSet = (dateInfo: DatesSetArg) => {
     setDateRange({
       start: dateInfo.start.toISOString(),
       end: dateInfo.end.toISOString(),
     });
   };
 
-  const handleDateClick = (info: any) => {
+  const handleDateClick = (info: DateClickArg) => {
     if (info.view.type === 'dayGridMonth') {
       const dayStart = new Date(info.date);
       const dayEnd = new Date(info.date);

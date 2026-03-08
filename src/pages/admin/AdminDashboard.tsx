@@ -5,13 +5,21 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import luxonPlugin from '@fullcalendar/luxon3';
+import type { DatesSetArg, EventClickArg, EventContentArg } from '@fullcalendar/core';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Users, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type SlotTime = { start_time: string; end_time: string };
+type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type StudentRef = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'>;
+type BookingWithStudent = BookingRow & { student: StudentRef | null };
+type BookingWithStudentRelation = BookingRow & { profiles: StudentRef | null };
+type SelectedSlot = SlotRow & { slotBookings: BookingWithStudent[]; usedSeats: number };
 
 const getSlotTimeParts = (isoDate: string) => {
   const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -108,9 +116,9 @@ const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: str
 const AdminDashboard = () => {
   const isMobile = useIsMobile();
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
 
-  const { data: slots = [] } = useQuery({
+  const { data: slots = [] } = useQuery<SlotRow[]>({
     queryKey: ['admin-slots', dateRange.start, dateRange.end],
     queryFn: async () => {
       if (!dateRange.start) return [];
@@ -121,13 +129,13 @@ const AdminDashboard = () => {
         .lte('start_time', dateRange.end)
         .order('start_time');
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!dateRange.start,
   });
 
   const slotIds = slots.map((s) => s.id);
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [] } = useQuery<BookingWithStudent[]>({
     queryKey: ['admin-bookings', slotIds],
     queryFn: async () => {
       if (!slotIds.length) return [];
@@ -137,15 +145,16 @@ const AdminDashboard = () => {
         .in('slot_id', slotIds)
         .eq('status', 'booked');
       if (error) throw error;
-      return data.map((b: any) => ({ ...b, student: b.profiles }));
+      const rows = (data ?? []) as BookingWithStudentRelation[];
+      return rows.map((b) => ({ ...b, student: b.profiles }));
     },
     enabled: slotIds.length > 0,
   });
 
   const events = useMemo(() => {
     return slots.map((slot) => {
-      const slotBookings = bookings.filter((b: any) => b.slot_id === slot.id);
-      const usedSeats = slotBookings.reduce((sum: number, b: any) => sum + b.seats_reserved, 0);
+      const slotBookings = bookings.filter((b) => b.slot_id === slot.id);
+      const usedSeats = slotBookings.reduce((sum, b) => sum + b.seats_reserved, 0);
       const isBlocked = slot.status === 'blocked';
       const summaryLabel = isBlocked
         ? 'Bloqueado'
@@ -174,7 +183,7 @@ const AdminDashboard = () => {
     });
   }, [slots, bookings]);
 
-  const renderEventContent = (eventInfo: any) => {
+  const renderEventContent = (eventInfo: EventContentArg) => {
     const { timeLabel, summaryLabel } = eventInfo.event.extendedProps as {
       timeLabel: string;
       summaryLabel: string;
@@ -211,11 +220,11 @@ const AdminDashboard = () => {
           slotMaxTime={calendarWindow.slotMaxTime}
           events={events}
           eventContent={renderEventContent}
-          eventClick={(info) => {
+          eventClick={(info: EventClickArg) => {
             const { slot, slotBookings, usedSeats } = info.event.extendedProps;
             setSelectedSlot({ ...slot, slotBookings, usedSeats });
           }}
-          datesSet={(info) => setDateRange({ start: info.startStr, end: info.endStr })}
+          datesSet={(info: DatesSetArg) => setDateRange({ start: info.startStr, end: info.endStr })}
           height="auto"
           eventDisplay="block"
           buttonText={{
@@ -262,7 +271,7 @@ const AdminDashboard = () => {
               {selectedSlot.slotBookings?.length > 0 ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-foreground">Alunos agendados:</p>
-                  {selectedSlot.slotBookings.map((b: any) => (
+                  {selectedSlot.slotBookings.map((b) => (
                     <div key={b.id} className="flex items-center justify-between rounded-lg bg-muted p-3">
                       <div className="flex items-center gap-2">
                         {b.seats_reserved === 2 ? (

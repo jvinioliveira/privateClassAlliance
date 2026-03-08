@@ -1,6 +1,7 @@
 ﻿import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface AvailabilitySlot {
   id: string;
@@ -60,6 +61,14 @@ export interface Notification {
   created_at: string;
 }
 
+type ProfileBasic = Pick<Database['public']['Tables']['profiles']['Row'], 'id' | 'full_name'>;
+type BookingWithProfile = Database['public']['Tables']['bookings']['Row'] & {
+  profiles: ProfileBasic | null;
+};
+type BookingWithSlot = Database['public']['Tables']['bookings']['Row'] & {
+  availability_slots: Database['public']['Tables']['availability_slots']['Row'] | null;
+};
+
 const getMonthBounds = (monthRef: string) => {
   const [year, month] = monthRef.split('-').map(Number);
   const nextYear = month === 12 ? year + 1 : year;
@@ -101,7 +110,8 @@ export const useBookingsForSlots = (slotIds: string[]) => {
         .in('slot_id', slotIds)
         .eq('status', 'booked');
       if (error) throw error;
-      return (data || []).map((b: any) => ({
+      const rows = (data || []) as BookingWithProfile[];
+      return rows.map((b) => ({
         ...b,
         student: b.profiles,
       })) as Booking[];
@@ -123,7 +133,8 @@ export const useMyBookings = () => {
         .eq('student_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map((b: any) => ({
+      const rows = (data || []) as BookingWithSlot[];
+      return rows.map((b) => ({
         ...b,
         slot: b.availability_slots,
       })) as Booking[];

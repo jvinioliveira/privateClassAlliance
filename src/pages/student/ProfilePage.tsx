@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
@@ -64,7 +64,7 @@ const defaultSettings: ProfileSettings = {
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   booked: { label: 'Agendada', variant: 'default' },
-  completed: { label: 'Concluida', variant: 'secondary' },
+  completed: { label: 'Concluída', variant: 'secondary' },
   cancelled: { label: 'Cancelada', variant: 'destructive' },
   no_show: { label: 'Falta', variant: 'outline' },
 };
@@ -74,18 +74,18 @@ const profileSections: ProfileSection[] = [
   { value: 'bookings', label: 'Meus agendamentos', icon: CalendarClock, studentOnly: true },
   { value: 'completed', label: 'Aulas realizadas', icon: CheckCircle2, studentOnly: true },
   { value: 'password', label: 'Redefinir senha', icon: Pencil },
-  { value: 'credits', label: 'Meus creditos', icon: WalletCards, studentOnly: true },
-  { value: 'faq', label: 'Duvidas', icon: AlertCircle },
-  { value: 'settings', label: 'Configuracoes', icon: Settings },
+  { value: 'credits', label: 'Meus créditos', icon: WalletCards, studentOnly: true },
+  { value: 'faq', label: 'Dúvidas frequentes', icon: AlertCircle },
+  { value: 'settings', label: 'Configurações', icon: Settings },
 ];
 
 const sectionTitle: Record<ProfileSectionKey, string> = {
   account: 'Minha conta',
   bookings: 'Meus agendamentos',
   completed: 'Aulas realizadas',
-  credits: 'Meus creditos',
-  faq: 'Duvidas',
-  settings: 'Configuracoes',
+  credits: 'Meus créditos',
+  faq: 'Dúvidas frequentes',
+  settings: 'Configurações',
   password: 'Redefinir senha',
 };
 
@@ -299,7 +299,7 @@ const ProfilePage = () => {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no maximo 5MB.');
+      toast.error('A imagem deve ter no máximo 5MB.');
       return;
     }
 
@@ -362,12 +362,12 @@ const ProfilePage = () => {
 
   const handleUpdatePassword = async () => {
     if (newPassword.length < 6) {
-      toast.error('A senha deve ter no minimo 6 caracteres.');
+      toast.error('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('As senhas nao coincidem.');
+      toast.error('As senhas não coincidem.');
       return;
     }
 
@@ -498,7 +498,7 @@ const ProfilePage = () => {
                     }}
                     className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                   >
-                    Cancelar edicao
+                    Cancelar edição
                   </button>
                 )}
               </div>
@@ -540,7 +540,7 @@ const ProfilePage = () => {
             </div>
           ) : upcomingBookings.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-background/40 p-6 text-center text-sm text-muted-foreground">
-              Voce ainda nao possui agendamentos ativos.
+              Você ainda não possui agendamentos ativos.
             </div>
           ) : (
             <div className="space-y-3">
@@ -556,7 +556,7 @@ const ProfilePage = () => {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <p className="text-sm font-medium text-foreground">
-                            {slotStart ? formatBookingDateTime(slotStart) : 'Horario indisponivel'}
+                            {slotStart ? formatBookingDateTime(slotStart) : 'Horário indisponível'}
                           </p>
                         </div>
 
@@ -583,7 +583,7 @@ const ProfilePage = () => {
                     {booking.status === 'booked' && !canCancelBooking && (
                       <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                         <AlertCircle className="h-3 w-3" />
-                        Cancelamento indisponivel (menos de 24h).
+                        Cancelamento indisponível (menos de 24h).
                       </p>
                     )}
                   </div>
@@ -600,11 +600,11 @@ const ProfilePage = () => {
         <div className="space-y-4 rounded-xl border border-border bg-card p-5">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg border border-border bg-background/40 p-3">
-              <p className="text-xs text-muted-foreground">Total concluidas</p>
+              <p className="text-xs text-muted-foreground">Total concluídas</p>
               <p className="mt-1 text-xl font-semibold text-foreground">{completedBookings.length}</p>
             </div>
             <div className="rounded-lg border border-border bg-background/40 p-3">
-              <p className="text-xs text-muted-foreground">Concluidas no mes</p>
+              <p className="text-xs text-muted-foreground">Concluídas no mês</p>
               <p className="mt-1 text-xl font-semibold text-primary">{completedThisMonth}</p>
             </div>
           </div>
@@ -615,7 +615,7 @@ const ProfilePage = () => {
             </div>
           ) : completedBookings.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-background/40 p-6 text-center text-sm text-muted-foreground">
-              Nenhuma aula concluida ainda.
+              Nenhuma aula concluída ainda.
             </div>
           ) : (
             <div className="space-y-2">
@@ -623,13 +623,13 @@ const ProfilePage = () => {
                 <div key={booking.id} className="flex items-center justify-between rounded-lg border border-border bg-background/40 p-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
-                      {booking.slot?.start_time ? formatBookingDateTime(booking.slot.start_time) : 'Horario indisponivel'}
+                      {booking.slot?.start_time ? formatBookingDateTime(booking.slot.start_time) : 'Horário indisponível'}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {booking.seats_reserved === 2 ? 'Aula em dupla' : 'Aula individual'}
                     </p>
                   </div>
-                  <Badge variant="secondary">Concluida</Badge>
+                  <Badge variant="secondary">Concluída</Badge>
                 </div>
               ))}
             </div>
@@ -650,7 +650,7 @@ const ProfilePage = () => {
               <div className="rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Mes atual</p>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Mês atual</p>
                     <p className="mt-1 text-2xl font-semibold text-foreground">
                       <span className="text-primary">{usedCredits}</span>
                       <span className="text-muted-foreground">/{monthlyLimit}</span>
@@ -682,30 +682,30 @@ const ProfilePage = () => {
         <div className="rounded-xl border border-border bg-card p-5">
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="faq-1">
-              <AccordionTrigger>Como faco para agendar uma aula?</AccordionTrigger>
+              <AccordionTrigger>Como faço para agendar uma aula?</AccordionTrigger>
               <AccordionContent>
-                Acesse a aba Agenda, escolha um horario disponivel e confirme o agendamento.
+                Acesse a aba Agenda, escolha um horário disponível e confirme o agendamento.
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="faq-2">
               <AccordionTrigger>Como funciona o cancelamento?</AccordionTrigger>
               <AccordionContent>
-                O cancelamento e permitido com no minimo 24 horas de antecedencia.
+                O cancelamento é permitido com no mínimo 24 horas de antecedência.
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="faq-3">
-              <AccordionTrigger>Onde vejo meus creditos?</AccordionTrigger>
+              <AccordionTrigger>Onde vejo meus créditos?</AccordionTrigger>
               <AccordionContent>
-                Na opcao Meus creditos voce acompanha limite do mes, consumo e saldo restante.
+                Na opção Meus créditos você acompanha limite do mês, consumo e saldo restante.
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="faq-4">
               <AccordionTrigger>Como alterar meus dados de conta?</AccordionTrigger>
               <AccordionContent>
-                Use a opcao Minha conta para editar nome, telefone e foto do perfil.
+                Use a opção Minha conta para editar nome, telefone e foto do perfil.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -731,7 +731,7 @@ const ProfilePage = () => {
             <div className="flex items-center justify-between rounded-lg border border-border bg-background/40 p-3">
               <div className="pr-3">
                 <p className="text-sm font-medium text-foreground">Lembretes no app</p>
-                <p className="text-xs text-muted-foreground">Exibir avisos de aulas e mudancas de horario.</p>
+                <p className="text-xs text-muted-foreground">Exibir avisos de aulas e mudanças de horário.</p>
               </div>
               <Switch
                 checked={settings.reminderPush}
@@ -774,7 +774,7 @@ const ProfilePage = () => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimo 6 caracteres"
+              placeholder="Mínimo 6 caracteres"
               minLength={6}
               className="border-border bg-background"
             />
@@ -855,7 +855,7 @@ const ProfilePage = () => {
               <p className="mt-1 text-lg font-semibold text-foreground">{upcomingBookings.length}</p>
             </div>
             <div className="rounded-lg border border-border/70 bg-background/50 p-3">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Creditos restantes</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Créditos restantes</p>
               <p className="mt-1 text-lg font-semibold text-primary">{remainingCredits}</p>
             </div>
           </div>
@@ -899,3 +899,5 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+
+

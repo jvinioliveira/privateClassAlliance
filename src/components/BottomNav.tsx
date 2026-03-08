@@ -40,7 +40,7 @@ const BottomNav = ({ items }: BottomNavProps) => {
                 {badgeCount > 0 && (
                   <span
                     className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground"
-                    aria-label={`${badgeCount} notificacoes nao lidas`}
+                    aria-label={`${badgeCount} notificações não lidas`}
                   >
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </span>
