@@ -213,6 +213,7 @@ const NotificationsPage = () => {
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="h-8 min-w-[132px] px-2.5 text-xs"
                   onClick={() => setShowClosedHistory((prev) => !prev)}
                 >
                   {showClosedHistory ? 'Ocultar histórico' : 'Ver histórico'}
@@ -220,6 +221,7 @@ const NotificationsPage = () => {
                 <Button
                   type="button"
                   size="sm"
+                  className="h-8 min-w-[132px] px-2.5 text-xs"
                   onClick={() => setConversationStatusMutation.mutate('open')}
                   disabled={setConversationStatusMutation.isPending}
                 >
