@@ -24,6 +24,9 @@ import NotificationsPage from "@/pages/student/NotificationsPage";
 import NotificationsHistoryPage from "@/pages/student/NotificationsHistoryPage";
 import ProfilePage from "@/pages/student/ProfilePage";
 import PlansPage from "@/pages/student/PlansPage";
+import PlanCheckoutPage from "@/pages/student/PlanCheckoutPage";
+import PlanCustomContactPage from "@/pages/student/PlanCustomContactPage";
+import PlanOrdersPage from "@/pages/student/PlanOrdersPage";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -33,6 +36,7 @@ import AdminStudentsPage from "@/pages/admin/AdminStudentsPage";
 import AdminBulkSchedulePage from "@/pages/admin/AdminBulkSchedulePage";
 import AdminReportsPage from "@/pages/admin/AdminReportsPage";
 import AdminPlansPage from "@/pages/admin/AdminPlansPage";
+import AdminPlanOrdersPage from "@/pages/admin/AdminPlanOrdersPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -78,6 +82,9 @@ const App = () => (
               <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/plans" element={<PlansPage />} />
+              <Route path="/plans/orders" element={<PlanOrdersPage />} />
+              <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
+              <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
             </Route>
 
             {/* Admin */}
@@ -89,6 +96,7 @@ const App = () => (
               <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
               <Route path="/admin/reports" element={<AdminReportsPage />} />
               <Route path="/admin/plans" element={<AdminPlansPage />} />
+              <Route path="/admin/plan-orders" element={<AdminPlanOrdersPage />} />
               <Route path="/admin/profile" element={<ProfilePage />} />
             </Route>
 

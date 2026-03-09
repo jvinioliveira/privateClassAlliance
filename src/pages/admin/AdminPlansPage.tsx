@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -42,6 +42,9 @@ const AdminPlansPage = () => {
   const [priceReais, setPriceReais] = useState('100.00');
   const [sortOrder, setSortOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
+  const [pixCode, setPixCode] = useState('');
+  const [pixQrImageUrl, setPixQrImageUrl] = useState('');
+  const [creditPaymentUrl, setCreditPaymentUrl] = useState('');
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['admin-lesson-plans'],
@@ -67,6 +70,9 @@ const AdminPlansPage = () => {
     setPriceReais('100.00');
     setSortOrder(0);
     setIsActive(true);
+    setPixCode('');
+    setPixQrImageUrl('');
+    setCreditPaymentUrl('');
   };
 
   const openCreate = (presetClassType?: PlanClassType) => {
@@ -84,6 +90,9 @@ const AdminPlansPage = () => {
     setPriceReais((plan.price_cents / 100).toFixed(2));
     setSortOrder(plan.sort_order);
     setIsActive(plan.is_active);
+    setPixCode(plan.pix_code || '');
+    setPixQrImageUrl(plan.pix_qr_image_url || '');
+    setCreditPaymentUrl(plan.credit_payment_url || '');
     setOpen(true);
   };
 
@@ -93,13 +102,19 @@ const AdminPlansPage = () => {
       const parsedPrice = Number(normalized);
       const parsedCredits = Number(credits);
       const parsedSortOrder = Number(sortOrder);
+      const normalizedCreditPaymentUrl = creditPaymentUrl.trim();
+      const normalizedPixQrImageUrl = pixQrImageUrl.trim();
+      const isPaymentUrlValid = !normalizedCreditPaymentUrl || /^https?:\/\//i.test(normalizedCreditPaymentUrl);
+      const isPixQrUrlValid = !normalizedPixQrImageUrl || /^https?:\/\//i.test(normalizedPixQrImageUrl);
 
       if (!name.trim()) throw new Error('Informe o nome do plano.');
-      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor inválido.');
+      if (!isPaymentUrlValid) throw new Error('Link de cartão deve começar com http:// ou https://.');
+      if (!isPixQrUrlValid) throw new Error('URL do QR PIX deve comecar com http:// ou https://.');
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor invÃ¡lido.');
       if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
-        throw new Error('Créditos devem ser inteiros e maiores que zero.');
+        throw new Error('CrÃ©ditos devem ser inteiros e maiores que zero.');
       }
-      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem inválida.');
+      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem invÃ¡lida.');
 
       const payload = {
         name: name.trim(),
@@ -109,6 +124,9 @@ const AdminPlansPage = () => {
         price_cents: Math.round(parsedPrice * 100),
         sort_order: Math.trunc(parsedSortOrder),
         is_active: isActive,
+        pix_code: pixCode.trim() || null,
+        pix_qr_image_url: normalizedPixQrImageUrl || null,
+        credit_payment_url: normalizedCreditPaymentUrl || null,
       };
 
       const duplicateQuery = supabase
@@ -125,7 +143,7 @@ const AdminPlansPage = () => {
       if (duplicateError) throw duplicateError;
       if (duplicate) {
         throw new Error(
-          `Já existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} créditos e valor ${formatMoney(payload.price_cents)}.`,
+          `JÃ¡ existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} crÃ©ditos e valor ${formatMoney(payload.price_cents)}.`,
         );
       }
 
@@ -147,7 +165,7 @@ const AdminPlansPage = () => {
     },
     onError: (err: Error) => {
       if ((err as unknown as { code?: string }).code === '23505') {
-        toast.error('Plano duplicado para a mesma categoria, créditos e valor.');
+        toast.error('Plano duplicado para a mesma categoria, crÃ©ditos e valor.');
         return;
       }
       toast.error(err.message);
@@ -273,7 +291,7 @@ const AdminPlansPage = () => {
                           {plan.is_active ? 'Ativo' : 'Inativo'}
                         </Badge>
                         <Badge variant="outline">{getClassTypeLabel(plan.planClassType)}</Badge>
-                        <Badge variant="secondary">{plan.credits} Créditos</Badge>
+                        <Badge variant="secondary">{plan.credits} CrÃ©ditos</Badge>
                       </div>
                       {plan.description && <p className="text-sm text-muted-foreground">{plan.description}</p>}
                       <p className="text-sm text-foreground">
@@ -284,6 +302,14 @@ const AdminPlansPage = () => {
                       {plan.discountPct > 0 && (
                         <p className="text-xs text-primary">Desconto aproximado: {plan.discountPct}%</p>
                       )}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Badge variant={plan.pix_code ? 'default' : 'outline'}>
+                          {plan.pix_code ? 'PIX configurado' : 'PIX pendente'}
+                        </Badge>
+                        <Badge variant={plan.credit_payment_url ? 'default' : 'outline'}>
+                          {plan.credit_payment_url ? 'Cartao configurado' : 'Cartao pendente'}
+                        </Badge>
+                      </div>
                     </div>
 
                     <div className="flex gap-2 self-end sm:self-auto">
@@ -334,7 +360,7 @@ const AdminPlansPage = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>Descrição</Label>
+              <Label>DescriÃ§Ã£o</Label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -367,7 +393,7 @@ const AdminPlansPage = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Créditos</Label>
+                <Label>CrÃ©ditos</Label>
                 <Input
                   type="number"
                   min={1}
@@ -413,12 +439,42 @@ const AdminPlansPage = () => {
               </div>
             </div>
 
+            <div className="space-y-1">
+              <Label>Código PIX (copia e cola)</Label>
+              <Textarea
+                value={pixCode}
+                onChange={(e) => setPixCode(e.target.value)}
+                placeholder="Cole aqui o código PIX deste plano"
+                className="min-h-24 bg-background"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>URL do QR Code PIX (opcional)</Label>
+              <Input
+                value={pixQrImageUrl}
+                onChange={(e) => setPixQrImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="bg-background"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Link de pagamento no cartão (opcional)</Label>
+              <Input
+                value={creditPaymentUrl}
+                onChange={(e) => setCreditPaymentUrl(e.target.value)}
+                placeholder="https://..."
+                className="bg-background"
+              />
+            </div>
+
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
               className="w-full font-display uppercase tracking-wider"
             >
-              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alterações' : 'Criar plano'}
+              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alteraÃ§Ãµes' : 'Criar plano'}
             </Button>
           </div>
         </DialogContent>
@@ -428,3 +484,6 @@ const AdminPlansPage = () => {
 };
 
 export default AdminPlansPage;
+
+
+

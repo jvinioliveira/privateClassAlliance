@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 type PurchaseRowRaw = {
   id: string;
   student_id: string;
-  plan_id: string;
+  plan_id: string | null;
   credits: number;
   remaining_credits: number | null;
   price_cents: number;
@@ -19,7 +19,7 @@ type PurchaseRowRaw = {
 export type StudentCreditPurchase = {
   id: string;
   studentId: string;
-  planId: string;
+  planId: string | null;
   credits: number;
   remainingCredits: number;
   priceCents: number;

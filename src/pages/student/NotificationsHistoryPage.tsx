@@ -73,7 +73,7 @@ const NotificationsHistoryPage = () => {
         <div>
           <h1 className="font-display text-xl uppercase tracking-wider text-foreground">Histórico de notificações</h1>
           <p className="text-xs text-muted-foreground">
-            Mostrando pagina {page + 1} de {totalPages}
+            Mostrando página {page + 1} de {totalPages}
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => navigate('/notifications')}>
@@ -91,7 +91,7 @@ const NotificationsHistoryPage = () => {
             onClick={() => markAllVisibleAsReadMutation.mutate()}
             disabled={!unreadIds.length || markAllVisibleAsReadMutation.isPending}
           >
-            Marcar pagina como lida
+            Marcar todas como lida
           </Button>
         </div>
 
@@ -102,7 +102,7 @@ const NotificationsHistoryPage = () => {
         ) : notifications.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <Bell className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Nenhuma notificacao encontrada.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma notificação encontrada.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -155,7 +155,7 @@ const NotificationsHistoryPage = () => {
               onClick={() => setPage((prev) => prev + 1)}
               disabled={!canGoNext}
             >
-              Proxima
+              Próxima
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>

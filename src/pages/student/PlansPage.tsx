@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import PlanCarousel from '@/components/plans/PlanCarousel';
 import AnimatedSavingsCounter from '@/components/plans/AnimatedSavingsCounter';
 import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
+import type { PlanOrder, PlanOrderStatus } from '@/lib/plan-orders';
 import { toast } from 'sonner';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -62,7 +64,8 @@ type PurchasePlanData = {
 
 type SelectedPlanData = {
   id: string;
-  plan_id: string;
+  plan_id: string | null;
+  class_type: string;
   credits: number;
   price_cents: number;
   selected_at: string;
@@ -74,6 +77,8 @@ type RuleItem = {
   title: string;
   description: string;
 };
+
+const openOrderStatuses: PlanOrderStatus[] = ['pending_payment', 'awaiting_contact', 'awaiting_approval'];
 
 const MAX_CUSTOM_CREDITS = 30;
 
@@ -112,6 +117,11 @@ const ruleItems: RuleItem[] = [
     icon: Dumbbell,
     title: 'Duração da aula',
     description: 'Duração média das aulas: 50 minutos.',
+  },
+  {
+    icon: CheckCircle2,
+    title: 'Confirmação manual',
+    description: 'Seus créditos são liberados somente após validação do pagamento pelo professor.',
   },
 ];
 
@@ -202,6 +212,7 @@ const toPurchaseData = (
 
 const PlansPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedClassType, setSelectedClassType] = useState<ClassType | null>(null);
   const [customCredits, setCustomCredits] = useState(1);
@@ -250,7 +261,7 @@ const PlansPage = () => {
 
       const { data, error } = await supabase
         .from('student_plan_selections')
-        .select('id, plan_id, credits, price_cents, selected_at, lesson_plans(name, description)')
+        .select('id, plan_id, class_type, credits, price_cents, selected_at, lesson_plans(name, description)')
         .eq('student_id', user.id)
         .eq('status', 'active')
         .order('selected_at', { ascending: false })
@@ -279,21 +290,56 @@ const PlansPage = () => {
     enabled: !!user,
   });
 
-  const choosePlanMutation = useMutation({
+  const { data: openOrders = [] } = useQuery<PlanOrder[]>({
+    queryKey: ['student-open-plan-orders', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('plan_orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', openOrderStatuses)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      return (data ?? []) as PlanOrder[];
+    },
+    enabled: !!user,
+  });
+
+  const createFixedOrderMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const { error } = await supabase.rpc('choose_plan', {
+      const { data, error } = await supabase.rpc('create_fixed_plan_order', {
         p_plan_id: planId,
       });
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      toast.success('Plano aplicado com sucesso.');
-      queryClient.invalidateQueries({ queryKey: ['selected-plan'] });
-      queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
-      queryClient.invalidateQueries({ queryKey: ['my-credits'] });
-      queryClient.invalidateQueries({ queryKey: ['slots'] });
+    onSuccess: (orderId) => {
+      toast.success('Pedido criado. Escolha a forma de pagamento.');
+      queryClient.invalidateQueries({ queryKey: ['plan-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
+      navigate(`/plans/checkout/${orderId}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const createCustomOrderMutation = useMutation({
+    mutationFn: async ({ classType, quantity }: { classType: ClassType; quantity: number }) => {
+      const { data, error } = await supabase.rpc('create_custom_plan_order', {
+        p_class_type: classType,
+        p_custom_quantity: quantity,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (orderId) => {
+      toast.success('Solicitacao personalizada criada.');
+      queryClient.invalidateQueries({ queryKey: ['plan-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
+      navigate(`/plans/custom/${orderId}`);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -421,16 +467,19 @@ const PlansPage = () => {
   const focusedPlanIndex = focusPlanId
     ? selectedFixedPlans.findIndex((plan) => plan.id === focusPlanId)
     : -1;
+  const latestOpenOrder = openOrders[0] ?? null;
 
-  const handlePurchase = (planData: PurchasePlanData, dbPlanId?: string) => {
+  const handleFixedPlanPurchase = (planData: PurchasePlanData, planId: string) => {
     setLastPurchase(planData);
+    createFixedOrderMutation.mutate(planId);
+  };
 
-    if (dbPlanId) {
-      choosePlanMutation.mutate(dbPlanId);
-      return;
-    }
-
-    toast.success('Resumo da compra preparado. Integracao com pagamento sera conectada na proxima etapa.');
+  const handleCustomPlanPurchase = (planData: PurchasePlanData) => {
+    setLastPurchase(planData);
+    createCustomOrderMutation.mutate({
+      classType: planData.classType,
+      quantity: planData.credits,
+    });
   };
 
   const totalCredits = creditSummary?.totalCredits ?? 0;
@@ -486,6 +535,32 @@ const PlansPage = () => {
             <Badge variant="outline">Plano atual: {selectedPlan.lesson_plans.name}</Badge>
           )}
         </div>
+
+        {latestOpenOrder && (
+          <div className="rounded-lg border border-primary/30 bg-primary/10 p-3">
+            <p className="text-sm font-medium text-foreground">Voce tem um pedido em andamento.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se fechar a aba, retome depois na pagina de pedidos em andamento.
+            </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(
+                    latestOpenOrder.plan_type === 'fixed'
+                      ? `/plans/checkout/${latestOpenOrder.id}`
+                      : `/plans/custom/${latestOpenOrder.id}`,
+                  )
+                }
+              >
+                Continuar ultimo pedido
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/plans/orders')}>
+                Ver pedidos em andamento
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
@@ -586,7 +661,7 @@ const PlansPage = () => {
                   const unitPriceCents = getFixedUnitPriceCents(plan);
                   const perStudentCents = unitPriceCents / 2;
                   const isSelected = selectedPlan?.plan_id === plan.id;
-                  const isApplying = choosePlanMutation.isPending && choosePlanMutation.variables === plan.id;
+                  const isApplying = createFixedOrderMutation.isPending && createFixedOrderMutation.variables === plan.id;
                   const isDouble = selectedClassType === 'double';
                   const isEquivalentHighlighted = highlightedPlanId === plan.id;
                   const isHighlighted = !!plan.highlight || isEquivalentHighlighted;
@@ -681,7 +756,7 @@ const PlansPage = () => {
                         </div>
 
                         <Button
-                          onClick={() => handlePurchase(purchaseData, plan.id)}
+                          onClick={() => handleFixedPlanPurchase(purchaseData, plan.id)}
                           disabled={isApplying || isSelected}
                           className="mt-auto w-full font-display uppercase tracking-wider"
                         >
@@ -848,10 +923,11 @@ const PlansPage = () => {
             </div>
 
             <Button
-              onClick={() => customPreview && handlePurchase(customPreview)}
+              onClick={() => customPreview && handleCustomPlanPurchase(customPreview)}
+              disabled={!customPreview || createCustomOrderMutation.isPending}
               className="w-full font-display uppercase tracking-wider sm:w-auto"
             >
-              Comprar créditos
+              {createCustomOrderMutation.isPending ? 'Criando solicitação...' : 'Solicitar plano personalizado'}
             </Button>
           </div>
 

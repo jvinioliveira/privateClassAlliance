@@ -9,6 +9,7 @@ import {
   WalletCards,
   UserCircle,
   LogOut,
+  Receipt,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,7 @@ const adminNavItems = [
   { to: '/admin/bulk-schedule', icon: CalendarPlus, label: 'Lote' },
   { to: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
   { to: '/admin/plans', icon: WalletCards, label: 'Planos' },
+  { to: '/admin/plan-orders', icon: Receipt, label: 'Compras' },
   { to: '/admin/profile', icon: UserCircle, label: 'Perfil' },
 ];
 

@@ -238,36 +238,45 @@ export type Database = {
       lesson_plans: {
         Row: {
           class_type: string
+          credit_payment_url: string | null
           created_at: string
           credits: number
           description: string | null
           id: string
           is_active: boolean
           name: string
+          pix_code: string | null
+          pix_qr_image_url: string | null
           price_cents: number
           sort_order: number
           updated_at: string
         }
         Insert: {
           class_type?: string
+          credit_payment_url?: string | null
           created_at?: string
           credits: number
           description?: string | null
           id?: string
           is_active?: boolean
           name: string
+          pix_code?: string | null
+          pix_qr_image_url?: string | null
           price_cents: number
           sort_order?: number
           updated_at?: string
         }
         Update: {
           class_type?: string
+          credit_payment_url?: string | null
           created_at?: string
           credits?: number
           description?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          pix_code?: string | null
+          pix_qr_image_url?: string | null
           price_cents?: number
           sort_order?: number
           updated_at?: string
@@ -305,6 +314,110 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_orders: {
+        Row: {
+          admin_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          class_type: string
+          created_at: string
+          credit_payment_url: string | null
+          credited_selection_id: string | null
+          credits_amount: number
+          custom_quantity: number | null
+          id: string
+          payment_confirmed_at: string | null
+          payment_method: string | null
+          pix_code: string | null
+          pix_qr_image_url: string | null
+          plan_id: string | null
+          plan_name: string
+          plan_type: string
+          price_amount_cents: number
+          status: string
+          updated_at: string
+          user_id: string
+          validity_days: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          class_type: string
+          created_at?: string
+          credit_payment_url?: string | null
+          credited_selection_id?: string | null
+          credits_amount: number
+          custom_quantity?: number | null
+          id?: string
+          payment_confirmed_at?: string | null
+          payment_method?: string | null
+          pix_code?: string | null
+          pix_qr_image_url?: string | null
+          plan_id?: string | null
+          plan_name: string
+          plan_type: string
+          price_amount_cents: number
+          status?: string
+          updated_at?: string
+          user_id: string
+          validity_days: number
+        }
+        Update: {
+          admin_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          class_type?: string
+          created_at?: string
+          credit_payment_url?: string | null
+          credited_selection_id?: string | null
+          credits_amount?: number
+          custom_quantity?: number | null
+          id?: string
+          payment_confirmed_at?: string | null
+          payment_method?: string | null
+          pix_code?: string | null
+          pix_qr_image_url?: string | null
+          plan_id?: string | null
+          plan_name?: string
+          plan_type?: string
+          price_amount_cents?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_orders_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_orders_credited_selection_id_fkey"
+            columns: ["credited_selection_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan_selections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_orders_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -382,33 +495,42 @@ export type Database = {
       }
       student_plan_selections: {
         Row: {
+          class_type: string
           credits: number
+          expires_at: string
           id: string
           month_ref: string
-          plan_id: string
+          plan_id: string | null
           price_cents: number
+          remaining_credits: number
           selected_at: string
           status: string
           student_id: string
           updated_at: string
         }
         Insert: {
+          class_type: string
           credits: number
+          expires_at: string
           id?: string
           month_ref: string
-          plan_id: string
+          plan_id?: string | null
           price_cents: number
+          remaining_credits: number
           selected_at?: string
           status?: string
           student_id: string
           updated_at?: string
         }
         Update: {
+          class_type?: string
           credits?: number
+          expires_at?: string
           id?: string
           month_ref?: string
-          plan_id?: string
+          plan_id?: string | null
           price_cents?: number
+          remaining_credits?: number
           selected_at?: string
           status?: string
           student_id?: string
@@ -551,12 +673,25 @@ export type Database = {
         Returns: string
       }
       cancel_booking: { Args: { p_booking_id: string }; Returns: Json }
+      create_custom_plan_order: {
+        Args: { p_class_type: string; p_custom_quantity: number }
+        Returns: string
+      }
+      create_fixed_plan_order: { Args: { p_plan_id: string }; Returns: string }
       get_month_ref: { Args: { ts: string }; Returns: string }
       get_month_report: { Args: { p_month_ref: string }; Returns: Json }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      mark_plan_order_payment: {
+        Args: { p_order_id: string; p_payment_method: string }
+        Returns: string
+      }
       notify_due_credit_expiry: { Args: { p_user_id?: string }; Returns: number }
       notify_due_credit_expiry_all: { Args: Record<PropertyKey, never>; Returns: number }
       process_waitlist: { Args: { p_slot_id: string }; Returns: undefined }
+      review_plan_order: {
+        Args: { p_admin_notes?: string | null; p_decision: string; p_order_id: string }
+        Returns: string | null
+      }
       reschedule_booking: {
         Args: { p_booking_id: string; p_new_slot_id: string }
         Returns: undefined
