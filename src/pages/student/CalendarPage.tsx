@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -24,7 +24,15 @@ import { useIsMobile } from '@/hooks/use-mobile';
 type SlotTime = { start_time: string; end_time: string };
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
-type SelectedSlot = SlotRow & { freeSeats: number; isMine: boolean; isFull: boolean };
+type SelectedSlot = SlotRow & {
+  freeSeats: number;
+  isMine: boolean;
+  isFull: boolean;
+  isUnavailableByTime: boolean;
+  unavailableReason: string | null;
+};
+
+const BOOKING_MIN_LEAD_MINUTES = 30;
 
 const getSlotTimeParts = (isoDate: string) => {
   const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -84,6 +92,36 @@ const getCalendarWindow = (slotList: SlotTime[]) => {
   };
 };
 
+const getSlotUnavailabilityInfo = (slotStartIso: string, nowMs = Date.now()) => {
+  const slotStartMs = new Date(slotStartIso).getTime();
+  if (!Number.isFinite(slotStartMs)) {
+    return {
+      isUnavailableByTime: true,
+      unavailableReason: 'Este horário está indisponível.',
+    };
+  }
+
+  const diffMs = slotStartMs - nowMs;
+  if (diffMs <= 0) {
+    return {
+      isUnavailableByTime: true,
+      unavailableReason: 'Este horário está indisponível porque já passou.',
+    };
+  }
+
+  if (diffMs <= BOOKING_MIN_LEAD_MINUTES * 60 * 1000) {
+    return {
+      isUnavailableByTime: true,
+      unavailableReason: 'Agendamento indisponível com menos de 30 minutos de antecedência.',
+    };
+  }
+
+  return {
+    isUnavailableByTime: false,
+    unavailableReason: null,
+  };
+};
+
 const renderTimeGridHeader = (arg: { date: Date; text: string; view: { type: string } }) => {
   if (!arg.view.type.startsWith('timeGrid')) return arg.text.replace(/\./g, '');
 
@@ -128,6 +166,15 @@ const CalendarPage = () => {
   const [bookingType, setBookingType] = useState<1 | 2>(1);
   const [partnerFirstName, setPartnerFirstName] = useState('');
   const [partnerLastName, setPartnerLastName] = useState('');
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 15000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const { data: creditSummary } = useQuery<StudentCreditSummary>({
     queryKey: ['credit-summary', user?.id],
@@ -145,7 +192,6 @@ const CalendarPage = () => {
     enabled: !!user,
   });
 
-  // Slots
   const { data: slots = [] } = useQuery<SlotRow[]>({
     queryKey: ['slots', dateRange.start, dateRange.end],
     queryFn: async () => {
@@ -165,24 +211,18 @@ const CalendarPage = () => {
 
   const calendarWindow = useMemo(() => getCalendarWindow(slots), [slots]);
 
-  // Bookings for these slots
   const slotIds = slots.map((s) => s.id);
   const { data: bookings = [] } = useQuery<BookingRow[]>({
     queryKey: ['bookings-for-slots', slotIds],
     queryFn: async () => {
       if (!slotIds.length) return [];
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .in('slot_id', slotIds)
-        .eq('status', 'booked');
+      const { data, error } = await supabase.from('bookings').select('*').in('slot_id', slotIds).eq('status', 'booked');
       if (error) throw error;
       return data ?? [];
     },
     enabled: slotIds.length > 0,
   });
 
-  // Build calendar events
   const events = useMemo(() => {
     return slots.map((slot) => {
       const slotBookings = bookings.filter((b) => b.slot_id === slot.id);
@@ -190,8 +230,12 @@ const CalendarPage = () => {
       const freeSeats = slot.capacity - usedSeats;
       const isMine = slotBookings.some((b) => b.student_id === user?.id);
       const isFull = freeSeats <= 0;
+      const { isUnavailableByTime, unavailableReason } = getSlotUnavailabilityInfo(slot.start_time, nowMs);
+
       const statusLabel = isMine
         ? 'Agendado'
+        : isUnavailableByTime
+        ? 'Indisponível'
         : isFull
         ? 'Lotado'
         : `${freeSeats}/${slot.capacity} vagas`;
@@ -203,23 +247,27 @@ const CalendarPage = () => {
         end: slot.end_time,
         backgroundColor: isMine
           ? 'hsl(120 40% 30%)'
+          : isUnavailableByTime
+          ? 'hsl(0 0% 45%)'
           : isFull
           ? 'hsl(0 65% 42%)'
           : 'hsl(43 72% 52%)',
-        textColor: isMine ? 'hsl(120 40% 90%)' : isFull ? 'hsl(0 0% 95%)' : 'hsl(0 0% 5%)',
+        textColor: isMine || isUnavailableByTime ? 'hsl(0 0% 95%)' : isFull ? 'hsl(0 0% 95%)' : 'hsl(0 0% 5%)',
         borderColor: 'transparent',
         extendedProps: {
           slot,
           freeSeats,
           isMine,
           isFull,
+          isUnavailableByTime,
+          unavailableReason,
           usedSeats,
           timeLabel: formatTimeWithH(slot.start_time),
           statusLabel,
         },
       };
     });
-  }, [slots, bookings, user]);
+  }, [slots, bookings, user, nowMs]);
 
   const renderEventContent = (eventInfo: EventContentArg) => {
     const { timeLabel, statusLabel } = eventInfo.event.extendedProps as {
@@ -276,8 +324,8 @@ const CalendarPage = () => {
   });
 
   const handleEventClick = (info: EventClickArg) => {
-    const { slot, freeSeats, isMine, isFull } = info.event.extendedProps;
-    setSelectedSlot({ ...slot, freeSeats, isMine, isFull });
+    const { slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason } = info.event.extendedProps;
+    setSelectedSlot({ ...slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason });
     setBookingType(1);
     setPartnerFirstName('');
     setPartnerLastName('');
@@ -308,30 +356,40 @@ const CalendarPage = () => {
   const remaining = creditSummary?.remainingCredits ?? 0;
   const isPartnerRequired = bookingType === 2;
   const isPartnerMissing = isPartnerRequired && (!partnerFirstName.trim() || !partnerLastName.trim());
+  const selectedSlotUnavailability = useMemo(() => {
+    if (!selectedSlot) {
+      return {
+        isUnavailableByTime: false,
+        unavailableReason: null as string | null,
+      };
+    }
+
+    return getSlotUnavailabilityInfo(selectedSlot.start_time, nowMs);
+  }, [selectedSlot, nowMs]);
+  const isSelectedSlotUnavailableByTime = selectedSlotUnavailability.isUnavailableByTime;
+  const selectedSlotUnavailableReason = selectedSlotUnavailability.unavailableReason;
 
   return (
     <div className="space-y-4 p-4">
-      {/* Credits card */}
       <div className="rounded-xl border border-border bg-card p-4 animate-fade-in">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-display">
-              Créditos ativos
-            </p>
-            <p className="mt-1 text-xl font-bold text-foreground font-display sm:text-2xl">
+            <p className="text-xs font-display uppercase tracking-wider text-muted-foreground">Créditos ativos</p>
+            <p className="mt-1 font-display text-xl font-bold text-foreground sm:text-2xl">
               <span className="text-primary">{usedCredits}</span>
               <span className="text-muted-foreground">/{totalCredits}</span>
             </p>
           </div>
           <div className="shrink-0 text-right">
             <p className="text-xs text-muted-foreground">Restantes</p>
-            <p className={`text-lg font-bold font-display sm:text-xl ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>{remaining}</p>
+            <p className={`font-display text-lg font-bold sm:text-xl ${remaining <= 0 ? 'text-destructive' : 'text-primary'}`}>
+              {remaining}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Calendar */}
-      <div className="rounded-xl border border-border bg-card p-2 sm:p-4 animate-fade-in">
+      <div className="rounded-xl border border-border bg-card p-2 animate-fade-in sm:p-4">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
           initialView={isMobile ? 'timeGridDay' : 'dayGridMonth'}
@@ -374,7 +432,6 @@ const CalendarPage = () => {
         <Plus className="h-6 w-6 sm:h-7 sm:w-7" />
       </button>
 
-      {/* Booking Modal */}
       <Dialog
         open={!!selectedSlot}
         onOpenChange={() => {
@@ -383,10 +440,16 @@ const CalendarPage = () => {
           setPartnerLastName('');
         }}
       >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto bg-card border-border sm:max-w-md">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto border-border bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-lg uppercase tracking-wider">
-              {selectedSlot?.isMine ? 'Aula agendada' : selectedSlot?.isFull ? 'Horário lotado' : 'Agendar aula'}
+              {selectedSlot?.isMine
+                ? 'Aula agendada'
+                : isSelectedSlotUnavailableByTime
+                ? 'Horário indisponível'
+                : selectedSlot?.isFull
+                ? 'Horário lotado'
+                : 'Agendar aula'}
             </DialogTitle>
           </DialogHeader>
 
@@ -401,21 +464,25 @@ const CalendarPage = () => {
                     month: '2-digit',
                     timeZone: 'America/Sao_Paulo',
                   })}{' '}
-                  às{' '}
-                  {formatTimeWithH(selectedSlot.start_time)}
+                  às {formatTimeWithH(selectedSlot.start_time)}
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
-                <Badge variant={selectedSlot.isFull ? 'destructive' : 'default'}>
-                  {selectedSlot.freeSeats}/{selectedSlot.capacity} vagas
+                <Badge variant={isSelectedSlotUnavailableByTime ? 'secondary' : selectedSlot.isFull ? 'destructive' : 'default'}>
+                  {isSelectedSlotUnavailableByTime ? 'Indisponível' : `${selectedSlot.freeSeats}/${selectedSlot.capacity} vagas`}
                 </Badge>
               </div>
 
               {selectedSlot.isMine ? (
-                <p className="text-sm text-muted-foreground">
-                  Você já está agendado para este horário.
-                </p>
+                <p className="text-sm text-muted-foreground">Você já está agendado para este horário.</p>
+              ) : isSelectedSlotUnavailableByTime ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <span>{selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.'}</span>
+                  </div>
+                </div>
               ) : selectedSlot.isFull ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -433,7 +500,6 @@ const CalendarPage = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Type selection */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">Tipo da aula:</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -459,7 +525,7 @@ const CalendarPage = () => {
                           bookingType === 2
                             ? 'border-primary bg-primary/10 text-primary'
                             : selectedSlot.freeSeats < 2
-                            ? 'border-border text-muted-foreground/40 cursor-not-allowed'
+                            ? 'cursor-not-allowed border-border text-muted-foreground/40'
                             : 'border-border text-muted-foreground hover:border-primary/50'
                         }`}
                       >
@@ -470,7 +536,7 @@ const CalendarPage = () => {
                     {bookingType === 2 && (
                       <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">
-                          Dupla ocupa 2 vagas, usa credito em dupla e o parceiro deve ser aluno da Alliance Sao Jose dos Pinhais.
+                          Dupla ocupa 2 vagas, usa crédito em dupla e o parceiro deve ser aluno da Alliance São José dos Pinhais.
                         </p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <Input
@@ -488,15 +554,18 @@ const CalendarPage = () => {
                             maxLength={120}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Informe nome e sobrenome para validar o aluno parceiro.
-                        </p>
+                        <p className="text-xs text-muted-foreground">Informe nome e sobrenome para validar o aluno parceiro.</p>
                       </div>
                     )}
                   </div>
 
                   <Button
                     onClick={() => {
+                      if (isSelectedSlotUnavailableByTime) {
+                        toast.error(selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.');
+                        return;
+                      }
+
                       if (isPartnerMissing) {
                         toast.error('Informe nome e sobrenome do segundo aluno para agendar em dupla.');
                         return;
@@ -525,6 +594,3 @@ const CalendarPage = () => {
 };
 
 export default CalendarPage;
-
-
-
