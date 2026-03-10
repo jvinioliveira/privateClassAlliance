@@ -370,6 +370,11 @@ const CalendarPage = () => {
   });
 
   const handleEventClick = (info: EventClickArg) => {
+    if (isMobile && info.view.type === 'dayGridMonth') {
+      info.view.calendar.changeView('timeGridDay', info.event.startStr);
+      return;
+    }
+
     const { slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason } = info.event.extendedProps;
     setSelectedSlot({ ...slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason });
     if (walletAvailability.onlyDouble) {
@@ -480,6 +485,7 @@ const CalendarPage = () => {
           locale="pt-br"
           timeZone="America/Sao_Paulo"
           allDaySlot={false}
+          fixedWeekCount={false}
           slotDuration="01:00:00"
           slotLabelInterval="01:00:00"
           dayHeaderContent={renderTimeGridHeader}
@@ -492,7 +498,8 @@ const CalendarPage = () => {
           datesSet={handleDatesSet}
           height="auto"
           eventDisplay="block"
-          dayMaxEvents={3}
+          dayMaxEvents={isMobile ? false : 3}
+          dayMaxEventRows={isMobile ? false : undefined}
           buttonText={{
             today: 'Hoje',
             month: 'MÃªs',

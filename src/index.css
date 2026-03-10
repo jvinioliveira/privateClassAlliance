@@ -146,6 +146,18 @@
   text-overflow: ellipsis;
 }
 
+@media (max-width: 640px) {
+  .fc .fc-daygrid-event {
+    font-size: 0.65rem;
+    line-height: 1.1;
+    padding: 0.08rem 0.28rem;
+  }
+
+  .fc .fc-daygrid-day-events {
+    margin-top: 0.12rem;
+  }
+}
+
 .fc .fc-timegrid-slot {
   height: 3rem;
 }

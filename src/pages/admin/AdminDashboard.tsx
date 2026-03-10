@@ -218,6 +218,7 @@ const AdminDashboard = () => {
           locale="pt-br"
           timeZone="America/Sao_Paulo"
           allDaySlot={false}
+          fixedWeekCount={false}
           slotDuration="01:00:00"
           slotLabelInterval="01:00:00"
           dayHeaderContent={renderTimeGridHeader}
