@@ -60,9 +60,15 @@ const getDisplayName = (
 };
 
 const getListItemClassName = (status: PlanOrderStatus) => {
-  if (status === 'awaiting_approval') return 'border-green-500/50 bg-green-500/10';
+  if (status === 'approved') return 'border-green-500/50 bg-green-500/10';
+  if (status === 'awaiting_approval') return 'border-emerald-500/40 bg-emerald-500/5';
   if (status === 'cancelled') return 'border-red-500/50 bg-red-500/10';
   return 'border-border bg-card';
+};
+
+const getStatusBadgeClassName = (status: PlanOrderStatus) => {
+  if (status === 'approved') return 'bg-green-600 text-white hover:bg-green-600';
+  return '';
 };
 
 const AdminPlanOrdersPage = () => {
@@ -254,7 +260,9 @@ const AdminPlanOrdersPage = () => {
                   <p className="text-sm font-semibold text-foreground">{order.studentName}</p>
                   <p className="text-xs text-muted-foreground">{order.plan_name}</p>
                 </div>
-                <Badge variant={getStatusVariant(order.status)}>{getPlanOrderStatusLabel(order.status)}</Badge>
+                <Badge variant={getStatusVariant(order.status)} className={getStatusBadgeClassName(order.status)}>
+                  {getPlanOrderStatusLabel(order.status)}
+                </Badge>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -311,7 +319,9 @@ const AdminPlanOrdersPage = () => {
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-base font-medium text-foreground">{selectedOrder.studentName}</p>
-                <Badge variant={getStatusVariant(selectedOrder.status)}>{getPlanOrderStatusLabel(selectedOrder.status)}</Badge>
+                <Badge variant={getStatusVariant(selectedOrder.status)} className={getStatusBadgeClassName(selectedOrder.status)}>
+                  {getPlanOrderStatusLabel(selectedOrder.status)}
+                </Badge>
                 <Badge variant="outline">{selectedOrder.plan_type === 'fixed' ? 'Plano fixo' : 'Personalizado'}</Badge>
               </div>
 

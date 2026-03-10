@@ -59,6 +59,7 @@ const AdminPlansPage = () => {
   const [paymentPixCode, setPaymentPixCode] = useState('');
   const [paymentPixQrImageUrl, setPaymentPixQrImageUrl] = useState('');
   const [paymentCreditPaymentUrl, setPaymentCreditPaymentUrl] = useState('');
+  const [selectedPaymentClassType, setSelectedPaymentClassType] = useState<PlanClassType | null>(null);
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['admin-lesson-plans'],
@@ -267,14 +268,10 @@ const AdminPlansPage = () => {
       ),
     [plansWithMetrics],
   );
-  const individualPaymentPlans = useMemo(
-    () => paymentPlans.filter((plan) => plan.planClassType === 'individual'),
-    [paymentPlans],
-  );
-  const doublePaymentPlans = useMemo(
-    () => paymentPlans.filter((plan) => plan.planClassType === 'double'),
-    [paymentPlans],
-  );
+  const visiblePaymentPlans = useMemo(() => {
+    if (!selectedPaymentClassType) return [] as PlanWithMetrics[];
+    return paymentPlans.filter((plan) => plan.planClassType === selectedPaymentClassType);
+  }, [paymentPlans, selectedPaymentClassType]);
 
   const handleManageClassType = (nextType: PlanClassType) => {
     setSelectedManagementClassType(nextType);
@@ -353,6 +350,27 @@ const AdminPlansPage = () => {
                   <p className="text-sm text-muted-foreground">
                     Clique em um plano para abrir o modal e configurar PIX (copia e cola), QR PIX e link de cartão.
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={selectedPaymentClassType === 'individual' ? 'default' : 'outline'}
+                      onClick={() => setSelectedPaymentClassType('individual')}
+                    >
+                      Planos individuais
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={selectedPaymentClassType === 'double' ? 'default' : 'outline'}
+                      onClick={() => setSelectedPaymentClassType('double')}
+                    >
+                      Planos em dupla
+                    </Button>
+                    {selectedPaymentClassType && (
+                      <Button type="button" variant="ghost" onClick={() => setSelectedPaymentClassType(null)}>
+                        Recolher lista
+                      </Button>
+                    )}
+                  </div>
 
                   {isLoading ? (
                     <div className="flex justify-center py-6">
@@ -360,24 +378,21 @@ const AdminPlansPage = () => {
                     </div>
                   ) : paymentPlans.length === 0 ? (
                     <p className="mt-3 text-sm text-muted-foreground">Nenhum plano cadastrado ainda.</p>
+                  ) : !selectedPaymentClassType ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Selecione uma categoria para visualizar e configurar os planos.
+                    </p>
+                  ) : visiblePaymentPlans.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Nenhum plano {selectedPaymentClassType === 'individual' ? 'individual' : 'em dupla'} cadastrado.
+                    </p>
                   ) : (
                     <div className="mt-3 space-y-4">
                       <div className="rounded-xl border border-border/70 bg-background/30 p-3">
-                        <h3 className="font-display text-xs uppercase tracking-wider text-foreground">Planos individuais</h3>
-                        {individualPaymentPlans.length === 0 ? (
-                          <p className="mt-2 text-xs text-muted-foreground">Nenhum plano individual cadastrado.</p>
-                        ) : (
-                          <div className="mt-2 space-y-2">{individualPaymentPlans.map(renderPaymentPlanOption)}</div>
-                        )}
-                      </div>
-
-                      <div className="rounded-xl border border-border/70 bg-background/30 p-3">
-                        <h3 className="font-display text-xs uppercase tracking-wider text-foreground">Planos em dupla</h3>
-                        {doublePaymentPlans.length === 0 ? (
-                          <p className="mt-2 text-xs text-muted-foreground">Nenhum plano em dupla cadastrado.</p>
-                        ) : (
-                          <div className="mt-2 space-y-2">{doublePaymentPlans.map(renderPaymentPlanOption)}</div>
-                        )}
+                        <h3 className="font-display text-xs uppercase tracking-wider text-foreground">
+                          {selectedPaymentClassType === 'individual' ? 'Planos individuais' : 'Planos em dupla'}
+                        </h3>
+                        <div className="mt-2 space-y-2">{visiblePaymentPlans.map(renderPaymentPlanOption)}</div>
                       </div>
                     </div>
                   )}
