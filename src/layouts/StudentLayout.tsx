@@ -1,20 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Calendar, House, UserCircle, WalletCards } from 'lucide-react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { STUDENT_LAST_ROUTE_KEY, saveLastRoute } from '@/lib/session-state';
 
 const StudentLayout = () => {
   const { profile, user } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (!user || profile?.role !== 'student') return;
 
     void supabase.rpc('notify_due_credit_expiry');
   }, [user, profile?.role]);
+
+  useEffect(() => {
+    if (!user || profile?.role !== 'student') return;
+    const path = `${location.pathname}${location.search}${location.hash}`;
+    saveLastRoute(STUDENT_LAST_ROUTE_KEY, path);
+  }, [user, profile?.role, location.pathname, location.search, location.hash]);
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['notifications', 'unread-count', user?.id],

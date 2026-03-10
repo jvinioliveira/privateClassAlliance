@@ -1,9 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { SESSION_EXPIRED_REASON_KEY, SESSION_LAST_ACTIVITY_AT_KEY } from '@/lib/session-state';
 
 type UserRole = 'student' | 'admin';
 const PASSWORD_RECOVERY_FLAG = 'auth:password-recovery';
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
+const MIN_IDLE_TIMEOUT_MINUTES = 15;
+const ACTIVITY_WRITE_THROTTLE_MS = 15000;
+const IDLE_CHECK_INTERVAL_MS = 30000;
+
+const resolveIdleTimeoutMs = () => {
+  const raw = Number(import.meta.env.VITE_SESSION_IDLE_TIMEOUT_MINUTES ?? DEFAULT_IDLE_TIMEOUT_MINUTES);
+  if (!Number.isFinite(raw)) return DEFAULT_IDLE_TIMEOUT_MINUTES * 60 * 1000;
+  const minutes = Math.max(Math.trunc(raw), MIN_IDLE_TIMEOUT_MINUTES);
+  return minutes * 60 * 1000;
+};
 
 interface Profile {
   id: string;
@@ -43,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const idleTimeoutMs = resolveIdleTimeoutMs();
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -74,6 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
 
+      if (nextSession?.user && typeof window !== 'undefined') {
+        window.localStorage.setItem(SESSION_LAST_ACTIVITY_AT_KEY, Date.now().toString());
+        window.localStorage.removeItem(SESSION_EXPIRED_REASON_KEY);
+      }
+
       // Token refresh keeps the same user/profile, so avoid unnecessary loading flicker.
       if (event === 'TOKEN_REFRESHED') return;
 
@@ -104,6 +122,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return;
+
+    const readLastActivity = () => {
+      const raw = window.localStorage.getItem(SESSION_LAST_ACTIVITY_AT_KEY);
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) return null;
+      return parsed;
+    };
+
+    const isExpired = () => {
+      const lastActivity = readLastActivity();
+      if (!lastActivity) return false;
+      return Date.now() - lastActivity > idleTimeoutMs;
+    };
+
+    const expireSession = () => {
+      window.localStorage.setItem(SESSION_EXPIRED_REASON_KEY, 'inactive');
+      void supabase.auth.signOut();
+    };
+
+    if (isExpired()) {
+      expireSession();
+      return;
+    }
+
+    let lastPersistAt = 0;
+    const markActivity = () => {
+      const now = Date.now();
+      if (now - lastPersistAt < ACTIVITY_WRITE_THROTTLE_MS) return;
+      lastPersistAt = now;
+      window.localStorage.setItem(SESSION_LAST_ACTIVITY_AT_KEY, now.toString());
+    };
+
+    markActivity();
+
+    const onUserActivity = () => markActivity();
+    const onVisibilityOrFocus = () => {
+      if (isExpired()) {
+        expireSession();
+        return;
+      }
+      markActivity();
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      'click',
+      'keydown',
+      'pointerdown',
+      'touchstart',
+      'scroll',
+      'mousemove',
+    ];
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, onUserActivity, { passive: true });
+    });
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') onVisibilityOrFocus();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onVisibilityOrFocus);
+    window.addEventListener('online', onVisibilityOrFocus);
+
+    const checkTimer = window.setInterval(() => {
+      if (isExpired()) {
+        expireSession();
+      }
+    }, IDLE_CHECK_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(checkTimer);
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, onUserActivity);
+      });
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onVisibilityOrFocus);
+      window.removeEventListener('online', onVisibilityOrFocus);
+    };
+  }, [user?.id, idleTimeoutMs]);
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     const normalizedFirstName = firstName.trim();
@@ -195,6 +296,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(SESSION_LAST_ACTIVITY_AT_KEY);
+    }
   };
 
   const resetPassword = async (email: string) => {

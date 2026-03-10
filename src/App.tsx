@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import {
+  ADMIN_LAST_ROUTE_KEY,
+  STUDENT_LAST_ROUTE_KEY,
+  getRecentLastRoute,
+} from "@/lib/session-state";
 
 // Auth pages
 import LoginPage from "@/pages/LoginPage";
@@ -40,7 +45,15 @@ import AdminPlanOrdersPage from "@/pages/admin/AdminPlanOrdersPage";
 
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const LAST_ROUTE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const HomeRedirect = () => {
   const { user, profile, loading } = useAuth();
@@ -54,8 +67,14 @@ const HomeRedirect = () => {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
-  return <Navigate to="/home" replace />;
+
+  if (profile?.role === "admin") {
+    const savedAdminRoute = getRecentLastRoute(ADMIN_LAST_ROUTE_KEY, LAST_ROUTE_MAX_AGE_MS);
+    return <Navigate to={savedAdminRoute || "/admin"} replace />;
+  }
+
+  const savedStudentRoute = getRecentLastRoute(STUDENT_LAST_ROUTE_KEY, LAST_ROUTE_MAX_AGE_MS);
+  return <Navigate to={savedStudentRoute || "/home"} replace />;
 };
 
 const App = () => (

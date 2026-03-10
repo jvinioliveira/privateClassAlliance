@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
+import { SESSION_EXPIRED_REASON_KEY } from '@/lib/session-state';
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -36,6 +37,15 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const reason = window.localStorage.getItem(SESSION_EXPIRED_REASON_KEY);
+    if (reason === 'inactive') {
+      toast.info('Sua sessão expirou por inatividade. Faça login novamente.');
+      window.localStorage.removeItem(SESSION_EXPIRED_REASON_KEY);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

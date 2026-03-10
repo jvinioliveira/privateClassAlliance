@@ -998,16 +998,6 @@ const ProfilePage = () => {
               />
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="w-full border-destructive/30 font-display uppercase tracking-wider text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            {signingOut ? 'Saindo...' : 'Sair da conta'}
-          </Button>
         </div>
       );
     }
@@ -1106,21 +1096,33 @@ const ProfilePage = () => {
           {renderSection()}
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card">
-          {visibleSections.map((section) => (
-            <button
-              key={section.value}
-              type="button"
-              onClick={() => setActiveSection(section.value)}
-              className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left last:border-b-0 hover:bg-background/40"
-            >
-              <span className="flex items-center gap-3">
-                <section.icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">{section.label}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </button>
-          ))}
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-card">
+            {visibleSections.map((section) => (
+              <button
+                key={section.value}
+                type="button"
+                onClick={() => setActiveSection(section.value)}
+                className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left last:border-b-0 hover:bg-background/40"
+              >
+                <span className="flex items-center gap-3">
+                  <section.icon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">{section.label}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="w-full border-destructive/30 font-display uppercase tracking-wider text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {signingOut ? 'Saindo...' : 'Sair da conta'}
+          </Button>
         </div>
       )}
     </div>

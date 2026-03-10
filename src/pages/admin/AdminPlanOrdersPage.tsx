@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   formatCurrencyBRL,
   formatDateTimeBR,
@@ -72,6 +73,7 @@ const getStatusBadgeClassName = (status: PlanOrderStatus) => {
 };
 
 const AdminPlanOrdersPage = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedStatuses, setSelectedStatuses] = useState<PlanOrderStatus[]>(filterOptions.map((item) => item.value));
   const [currentPage, setCurrentPage] = useState(0);
@@ -138,6 +140,25 @@ const AdminPlanOrdersPage = () => {
     }
   }, [currentPage, totalPages]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const markAdminOrderNotificationsAsRead = async () => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('type', 'plan_order_new')
+        .eq('read', false);
+
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: ['admin-plan-order-unread', user.id] });
+      }
+    };
+
+    void markAdminOrderNotificationsAsRead();
+  }, [user, queryClient]);
+
   const paginatedOrders = useMemo(() => {
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE;
@@ -162,6 +183,7 @@ const AdminPlanOrdersPage = () => {
     onSuccess: (_data, variables) => {
       toast.success(variables.decision === 'approve' ? 'Pedido aprovado e créditos liberados.' : 'Pedido cancelado.');
       queryClient.invalidateQueries({ queryKey: ['admin-plan-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-plan-order-unread'] });
       queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
       queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
       queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });

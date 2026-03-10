@@ -70,12 +70,12 @@ const getCalendarWindow = (slotList: SlotTime[]) => {
     maxEnd = Math.max(maxEnd, end.hour * 60 + end.minute);
   }
 
-  const paddedMin = Math.max(0, minStart - 30);
-  const paddedMax = Math.min(24 * 60, maxEnd + 30);
+  const hourlyMin = Math.max(0, Math.floor(minStart / 60) * 60);
+  const hourlyMax = Math.min(24 * 60, Math.ceil(maxEnd / 60) * 60);
 
   return {
-    slotMinTime: toCalendarTime(paddedMin),
-    slotMaxTime: toCalendarTime(Math.max(paddedMax, paddedMin + 60)),
+    slotMinTime: toCalendarTime(hourlyMin),
+    slotMaxTime: toCalendarTime(Math.max(hourlyMax, hourlyMin + 60)),
   };
 };
 
@@ -218,6 +218,8 @@ const AdminDashboard = () => {
           locale="pt-br"
           timeZone="America/Sao_Paulo"
           allDaySlot={false}
+          slotDuration="01:00:00"
+          slotLabelInterval="01:00:00"
           dayHeaderContent={renderTimeGridHeader}
           slotMinTime={calendarWindow.slotMinTime}
           slotMaxTime={calendarWindow.slotMaxTime}
