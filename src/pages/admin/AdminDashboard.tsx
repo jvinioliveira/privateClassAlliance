@@ -156,9 +156,12 @@ const AdminDashboard = () => {
       const slotBookings = bookings.filter((b) => b.slot_id === slot.id);
       const usedSeats = slotBookings.reduce((sum, b) => sum + b.seats_reserved, 0);
       const isBlocked = slot.status === 'blocked';
+      const isOccupied = slotBookings.length > 0;
       const summaryLabel = isBlocked
         ? 'Bloqueado'
-        : `${usedSeats}/${slot.capacity} - ${slotBookings.length} aluno(s)`;
+        : isOccupied
+        ? 'Ocupado'
+        : 'Disponível';
 
       return {
         id: slot.id,
@@ -167,10 +170,10 @@ const AdminDashboard = () => {
         end: slot.end_time,
         backgroundColor: isBlocked
           ? 'hsl(0 0% 25%)'
-          : usedSeats >= slot.capacity
+          : isOccupied
           ? 'hsl(0 65% 42%)'
           : 'hsl(43 72% 52%)',
-        textColor: isBlocked ? 'hsl(0 0% 60%)' : usedSeats >= slot.capacity ? 'hsl(0 0% 95%)' : 'hsl(0 0% 5%)',
+        textColor: isBlocked ? 'hsl(0 0% 60%)' : isOccupied ? 'hsl(0 0% 95%)' : 'hsl(0 0% 5%)',
         borderColor: 'transparent',
         extendedProps: {
           slot,
@@ -264,7 +267,7 @@ const AdminDashboard = () => {
                   {selectedSlot.status === 'blocked' ? 'Bloqueado' : 'Disponível'}
                 </Badge>
                 <Badge variant="secondary">
-                  {selectedSlot.usedSeats}/{selectedSlot.capacity} vagas
+                  {selectedSlot.slotBookings.length > 0 ? 'Ocupado' : 'Sem agendamento'}
                 </Badge>
               </div>
 

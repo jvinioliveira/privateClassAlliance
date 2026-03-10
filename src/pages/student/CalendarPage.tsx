@@ -24,6 +24,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 type SlotTime = { start_time: string; end_time: string };
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
+type WalletRow = Database['public']['Tables']['student_plan_selections']['Row'];
 type SelectedSlot = SlotRow & {
   freeSeats: number;
   isMine: boolean;
@@ -192,6 +193,25 @@ const CalendarPage = () => {
     enabled: !!user,
   });
 
+  const { data: activeWallets = [], isLoading: isLoadingWallets } = useQuery<WalletRow[]>({
+    queryKey: ['student-active-wallets', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('student_plan_selections')
+        .select('*')
+        .eq('student_id', user.id)
+        .eq('status', 'active')
+        .order('selected_at', { ascending: false })
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []) as WalletRow[];
+    },
+    enabled: !!user,
+  });
+
   const { data: slots = [] } = useQuery<SlotRow[]>({
     queryKey: ['slots', dateRange.start, dateRange.end],
     queryFn: async () => {
@@ -223,13 +243,45 @@ const CalendarPage = () => {
     enabled: slotIds.length > 0,
   });
 
+  const walletAvailability = useMemo(() => {
+    const now = Date.now();
+    const latestByClassType = new Map<'individual' | 'double', WalletRow>();
+
+    for (const wallet of activeWallets) {
+      const classType = wallet.class_type === 'double' ? 'double' : 'individual';
+      if (!latestByClassType.has(classType)) {
+        latestByClassType.set(classType, wallet);
+      }
+    }
+
+    const hasValidCredits = (wallet: WalletRow | undefined) => {
+      if (!wallet) return false;
+      const expiresAtMs = new Date(wallet.expires_at).getTime();
+      if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now) return false;
+      return (wallet.remaining_credits ?? 0) > 0;
+    };
+
+    const hasIndividualCredit = hasValidCredits(latestByClassType.get('individual'));
+    const hasDoubleCredit = hasValidCredits(latestByClassType.get('double'));
+
+    return {
+      hasIndividualCredit,
+      hasDoubleCredit,
+      canChooseType: hasIndividualCredit && hasDoubleCredit,
+      onlyIndividual: hasIndividualCredit && !hasDoubleCredit,
+      onlyDouble: hasDoubleCredit && !hasIndividualCredit,
+      hasNoCredits: !hasIndividualCredit && !hasDoubleCredit,
+    };
+  }, [activeWallets]);
+
   const events = useMemo(() => {
     return slots.map((slot) => {
       const slotBookings = bookings.filter((b) => b.slot_id === slot.id);
       const usedSeats = slotBookings.reduce((sum, b) => sum + b.seats_reserved, 0);
-      const freeSeats = slot.capacity - usedSeats;
+      const isOccupied = slotBookings.length > 0;
+      const freeSeats = isOccupied ? 0 : slot.capacity;
       const isMine = slotBookings.some((b) => b.student_id === user?.id);
-      const isFull = freeSeats <= 0;
+      const isFull = isOccupied;
       const { isUnavailableByTime, unavailableReason } = getSlotUnavailabilityInfo(slot.start_time, nowMs);
 
       const statusLabel = isMine
@@ -237,8 +289,8 @@ const CalendarPage = () => {
         : isUnavailableByTime
         ? 'Indisponível'
         : isFull
-        ? 'Lotado'
-        : `${freeSeats}/${slot.capacity} vagas`;
+        ? 'Ocupado'
+        : 'Disponível';
 
       return {
         id: slot.id,
@@ -326,7 +378,11 @@ const CalendarPage = () => {
   const handleEventClick = (info: EventClickArg) => {
     const { slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason } = info.event.extendedProps;
     setSelectedSlot({ ...slot, freeSeats, isMine, isFull, isUnavailableByTime, unavailableReason });
-    setBookingType(1);
+    if (walletAvailability.onlyDouble) {
+      setBookingType(2);
+    } else {
+      setBookingType(1);
+    }
     setPartnerFirstName('');
     setPartnerLastName('');
   };
@@ -351,11 +407,33 @@ const CalendarPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (!selectedSlot) return;
+
+    if (walletAvailability.onlyDouble && bookingType !== 2) {
+      setBookingType(2);
+      return;
+    }
+
+    if (walletAvailability.onlyIndividual && bookingType !== 1) {
+      setBookingType(1);
+      setPartnerFirstName('');
+      setPartnerLastName('');
+    }
+  }, [selectedSlot, walletAvailability.onlyDouble, walletAvailability.onlyIndividual, bookingType]);
+
   const usedCredits = creditSummary?.usedCredits ?? 0;
   const totalCredits = creditSummary?.totalCredits ?? 0;
   const remaining = creditSummary?.remainingCredits ?? 0;
+  const hasIndividualCredit = walletAvailability.hasIndividualCredit;
+  const hasDoubleCredit = walletAvailability.hasDoubleCredit;
+  const canChooseBookingType = walletAvailability.canChooseType;
+  const onlyIndividualCredit = walletAvailability.onlyIndividual;
+  const onlyDoubleCredit = walletAvailability.onlyDouble;
+  const hasNoCredits = walletAvailability.hasNoCredits;
   const isPartnerRequired = bookingType === 2;
   const isPartnerMissing = isPartnerRequired && (!partnerFirstName.trim() || !partnerLastName.trim());
+  const canConfirmBooking = !isLoadingWallets && !hasNoCredits && !isPartnerMissing;
   const selectedSlotUnavailability = useMemo(() => {
     if (!selectedSlot) {
       return {
@@ -448,7 +526,7 @@ const CalendarPage = () => {
                 : isSelectedSlotUnavailableByTime
                 ? 'Horário indisponível'
                 : selectedSlot?.isFull
-                ? 'Horário lotado'
+                ? 'Horário ocupado'
                 : 'Agendar aula'}
             </DialogTitle>
           </DialogHeader>
@@ -470,7 +548,7 @@ const CalendarPage = () => {
 
               <div className="flex items-center gap-2">
                 <Badge variant={isSelectedSlotUnavailableByTime ? 'secondary' : selectedSlot.isFull ? 'destructive' : 'default'}>
-                  {isSelectedSlotUnavailableByTime ? 'Indisponível' : `${selectedSlot.freeSeats}/${selectedSlot.capacity} vagas`}
+                  {isSelectedSlotUnavailableByTime ? 'Indisponível' : selectedSlot.isFull ? 'Ocupado' : 'Disponível'}
                 </Badge>
               </div>
 
@@ -487,7 +565,7 @@ const CalendarPage = () => {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <span>Este horário está lotado</span>
+                    <span>Este horário já está ocupado.</span>
                   </div>
                   <Button
                     onClick={() => waitlistMutation.mutate(selectedSlot.id)}
@@ -500,89 +578,139 @@ const CalendarPage = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Tipo da aula:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => {
-                          setBookingType(1);
-                          setPartnerFirstName('');
-                          setPartnerLastName('');
-                        }}
-                        className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
-                          bookingType === 1
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border text-muted-foreground hover:border-primary/50'
-                        }`}
-                      >
-                        <User className="h-4 w-4" />
-                        Individual
-                      </button>
-                      <button
-                        onClick={() => setBookingType(2)}
-                        disabled={selectedSlot.freeSeats < 2}
-                        className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
-                          bookingType === 2
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : selectedSlot.freeSeats < 2
-                            ? 'cursor-not-allowed border-border text-muted-foreground/40'
-                            : 'border-border text-muted-foreground hover:border-primary/50'
-                        }`}
-                      >
-                        <Users className="h-4 w-4" />
-                        Dupla
-                      </button>
+                  {isLoadingWallets ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Carregando seus créditos...</p>
                     </div>
-                    {bookingType === 2 && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Dupla ocupa 2 vagas, usa crédito em dupla e o parceiro deve ser aluno da Alliance São José dos Pinhais.
-                        </p>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <Input
-                            value={partnerFirstName}
-                            onChange={(event) => setPartnerFirstName(event.target.value)}
-                            placeholder="Nome do parceiro"
-                            className="bg-background"
-                            maxLength={80}
-                          />
-                          <Input
-                            value={partnerLastName}
-                            onChange={(event) => setPartnerLastName(event.target.value)}
-                            placeholder="Sobrenome do parceiro"
-                            className="bg-background"
-                            maxLength={120}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">Informe nome e sobrenome para validar o aluno parceiro.</p>
+                  ) : hasNoCredits ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span>Você não tem créditos ativos para agendar este horário.</span>
                       </div>
-                    )}
-                  </div>
+                      <Button variant="outline" className="w-full" onClick={() => navigate('/plans')}>
+                        Comprar créditos
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        {canChooseBookingType ? (
+                          <>
+                            <p className="text-sm font-medium text-foreground">Tipo da aula:</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => {
+                                  setBookingType(1);
+                                  setPartnerFirstName('');
+                                  setPartnerLastName('');
+                                }}
+                                className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                                  bookingType === 1
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border text-muted-foreground hover:border-primary/50'
+                                }`}
+                              >
+                                <User className="h-4 w-4" />
+                                Individual
+                              </button>
+                              <button
+                                onClick={() => setBookingType(2)}
+                                className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                                  bookingType === 2
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border text-muted-foreground hover:border-primary/50'
+                                }`}
+                              >
+                                <Users className="h-4 w-4" />
+                                Dupla
+                              </button>
+                            </div>
+                          </>
+                        ) : onlyIndividualCredit ? (
+                          <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
+                            Seus créditos ativos são individuais. O agendamento será feito automaticamente como aula individual.
+                          </p>
+                        ) : onlyDoubleCredit ? (
+                          <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
+                            Seus créditos ativos são em dupla. O agendamento será feito automaticamente como aula em dupla.
+                          </p>
+                        ) : null}
 
-                  <Button
-                    onClick={() => {
-                      if (isSelectedSlotUnavailableByTime) {
-                        toast.error(selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.');
-                        return;
-                      }
+                        {bookingType === 2 && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              Aula em dupla exige crédito de dupla e nome/sobrenome do parceiro (aluno cadastrado).
+                            </p>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <Input
+                                value={partnerFirstName}
+                                onChange={(event) => setPartnerFirstName(event.target.value)}
+                                placeholder="Nome do parceiro"
+                                className="bg-background"
+                                maxLength={80}
+                              />
+                              <Input
+                                value={partnerLastName}
+                                onChange={(event) => setPartnerLastName(event.target.value)}
+                                placeholder="Sobrenome do parceiro"
+                                className="bg-background"
+                                maxLength={120}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Informe nome e sobrenome para validar o aluno parceiro.
+                            </p>
+                          </div>
+                        )}
+                      </div>
 
-                      if (isPartnerMissing) {
-                        toast.error('Informe nome e sobrenome do segundo aluno para agendar em dupla.');
-                        return;
-                      }
+                      <Button
+                        onClick={() => {
+                          if (isSelectedSlotUnavailableByTime) {
+                            toast.error(selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.');
+                            return;
+                          }
 
-                      bookMutation.mutate({
-                        slotId: selectedSlot.id,
-                        seats: bookingType,
-                        partnerFirst: bookingType === 2 ? partnerFirstName.trim() : null,
-                        partnerLast: bookingType === 2 ? partnerLastName.trim() : null,
-                      });
-                    }}
-                    disabled={bookMutation.isPending || isPartnerMissing}
-                    className="w-full font-display uppercase tracking-wider"
-                  >
-                    {bookMutation.isPending ? 'Agendando...' : 'Confirmar agendamento'}
-                  </Button>
+                          if (hasNoCredits) {
+                            toast.error('Você não possui créditos ativos para agendar.');
+                            return;
+                          }
+
+                          if (isLoadingWallets) {
+                            toast.error('Aguarde o carregamento dos créditos para continuar.');
+                            return;
+                          }
+
+                          if (bookingType === 1 && !hasIndividualCredit) {
+                            toast.error('Você não possui créditos de aula individual.');
+                            return;
+                          }
+
+                          if (bookingType === 2 && !hasDoubleCredit) {
+                            toast.error('Você não possui créditos de aula em dupla.');
+                            return;
+                          }
+
+                          if (isPartnerMissing) {
+                            toast.error('Informe nome e sobrenome do segundo aluno para agendar em dupla.');
+                            return;
+                          }
+
+                          bookMutation.mutate({
+                            slotId: selectedSlot.id,
+                            seats: bookingType,
+                            partnerFirst: bookingType === 2 ? partnerFirstName.trim() : null,
+                            partnerLast: bookingType === 2 ? partnerLastName.trim() : null,
+                          });
+                        }}
+                        disabled={bookMutation.isPending || !canConfirmBooking}
+                        className="w-full font-display uppercase tracking-wider"
+                      >
+                        {bookMutation.isPending ? 'Agendando...' : `Confirmar agendamento ${bookingType === 2 ? 'em dupla' : 'individual'}`}
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

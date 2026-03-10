@@ -33,34 +33,60 @@ const BottomNav = ({ items }: BottomNavProps) => {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  'group flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
+                  'group flex min-h-[56px] flex-col items-center justify-center rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
                   isActive
                     ? 'bg-primary/12 text-primary'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
                 )
               }
             >
-              <span className="relative">
-                {item.avatarUrl ? (
-                  <img
-                    src={item.avatarUrl}
-                    alt={`Foto de perfil - ${item.label}`}
-                    className="h-6 w-6 rounded-full border border-primary/30 object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <item.icon className={cn('h-[18px] w-[18px]', item.iconClassName)} />
-                )}
-                {badgeCount > 0 && (
+              {({ isActive }) => (
+                <>
                   <span
-                    className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground"
-                    aria-label={`${badgeCount} notificações não lidas`}
+                    className={cn(
+                      'relative transition-transform duration-200 ease-out',
+                      isActive ? 'scale-110' : 'scale-100',
+                    )}
                   >
-                    {badgeCount > 9 ? '9+' : badgeCount}
+                    {item.avatarUrl ? (
+                      <img
+                        src={item.avatarUrl}
+                        alt={`Foto de perfil - ${item.label}`}
+                        className={cn(
+                          'h-6 w-6 rounded-full border object-cover transition-all duration-200 ease-out',
+                          isActive ? 'border-primary/50' : 'border-primary/30',
+                        )}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <item.icon
+                        className={cn(
+                          'h-[18px] w-[18px] transition-transform duration-200 ease-out',
+                          isActive ? 'scale-110' : 'scale-100',
+                          item.iconClassName,
+                        )}
+                      />
+                    )}
+                    {badgeCount > 0 && (
+                      <span
+                        className="absolute -right-2 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground"
+                        aria-label={`${badgeCount} notificacoes nao lidas`}
+                      >
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              <span className="max-w-full truncate whitespace-nowrap font-medium">{item.label}</span>
+
+                  <span
+                    className={cn(
+                      'max-w-full overflow-hidden whitespace-nowrap font-medium transition-all duration-200 ease-out',
+                      isActive ? 'mt-1 max-h-4 translate-y-0 opacity-100' : 'max-h-0 -translate-y-1 opacity-0',
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                </>
+              )}
             </RouterNavLink>
           );
         })}

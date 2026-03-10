@@ -49,13 +49,11 @@ const AdminSlotsPage = () => {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState(DEFAULT_LESSON_DURATION);
-  const [capacity, setCapacity] = useState(DEFAULT_SLOT_CAPACITY);
 
   const [recDays, setRecDays] = useState<number[]>([]);
   const [recTime, setRecTime] = useState('');
   const [recStartDate, setRecStartDate] = useState('');
   const [recEndDate, setRecEndDate] = useState('');
-  const [recCapacity, setRecCapacity] = useState(DEFAULT_SLOT_CAPACITY);
 
   const [batchDays, setBatchDays] = useState<number[]>([]);
   const [batchStartDate, setBatchStartDate] = useState('');
@@ -64,7 +62,6 @@ const AdminSlotsPage = () => {
   const [batchAction, setBatchAction] = useState<'edit' | 'delete'>('edit');
   const [batchNewTime, setBatchNewTime] = useState('');
   const [batchDuration, setBatchDuration] = useState(DEFAULT_LESSON_DURATION);
-  const [batchCapacity, setBatchCapacity] = useState(DEFAULT_SLOT_CAPACITY);
 
   const toggleDay = (
     setter: React.Dispatch<React.SetStateAction<number[]>>,
@@ -96,7 +93,6 @@ const AdminSlotsPage = () => {
     mutationFn: async () => {
       if (!date || !time) throw new Error('Preencha data e horário.');
       if (duration <= 0) throw new Error('Duração inválida.');
-      if (capacity <= 0) throw new Error('Capacidade inválida.');
 
       const startTime = buildSaoPauloDateTime(date, time);
       const endTime = startTime.plus({ minutes: duration });
@@ -104,7 +100,7 @@ const AdminSlotsPage = () => {
       const { error } = await supabase.from('availability_slots').insert({
         start_time: toUtcIso(startTime),
         end_time: toUtcIso(endTime),
-        capacity,
+        capacity: DEFAULT_SLOT_CAPACITY,
         created_by: user?.id || null,
       });
 
@@ -125,7 +121,6 @@ const AdminSlotsPage = () => {
         throw new Error('Preencha horário e período da recorrência.');
       }
       if (duration <= 0) throw new Error('Duração inválida.');
-      if (recCapacity <= 0) throw new Error('Capacidade inválida.');
 
       const startDate = DateTime.fromISO(recStartDate, { zone: SAO_PAULO_TZ }).startOf('day');
       const endDate = DateTime.fromISO(recEndDate, { zone: SAO_PAULO_TZ }).startOf('day');
@@ -144,7 +139,7 @@ const AdminSlotsPage = () => {
           slotsToInsert.push({
             start_time: toUtcIso(slotStart),
             end_time: toUtcIso(slotEnd),
-            capacity: recCapacity,
+            capacity: DEFAULT_SLOT_CAPACITY,
             created_by: user?.id || null,
           });
         }
@@ -181,7 +176,6 @@ const AdminSlotsPage = () => {
       if (batchAction === 'edit') {
         if (!batchNewTime) throw new Error('Informe o novo horário.');
         if (batchDuration <= 0) throw new Error('Duração inválida.');
-        if (batchCapacity <= 0) throw new Error('Capacidade inválida.');
       }
 
       const { data, error } = await supabase
@@ -226,7 +220,6 @@ const AdminSlotsPage = () => {
             .update({
               start_time: toUtcIso(newStart),
               end_time: toUtcIso(newEnd),
-              capacity: batchCapacity,
             })
             .eq('id', slot.id);
 
@@ -305,28 +298,21 @@ const AdminSlotsPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label>Duração (min)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={duration}
-                      onChange={(e) => setDuration(Number(e.target.value))}
-                      className="bg-background"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Capacidade</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={capacity}
-                      onChange={(e) => setCapacity(Number(e.target.value))}
-                      className="bg-background"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <Label>Duração (min)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                    className="bg-background"
+                  />
                 </div>
+
+                <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
+                  Capacidade automática: o horário aceita aula individual ou em dupla conforme o tipo de crédito usado no
+                  agendamento.
+                </p>
 
                 <Button
                   onClick={() => createSlotMutation.mutate()}
@@ -397,16 +383,9 @@ const AdminSlotsPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label>Capacidade</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={recCapacity}
-                    onChange={(e) => setRecCapacity(Number(e.target.value))}
-                    className="bg-background"
-                  />
-                </div>
+                <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
+                  Capacidade automática aplicada aos horários recorrentes.
+                </p>
 
                 <Button
                   onClick={() => createRecurrenceMutation.mutate()}
@@ -510,29 +489,20 @@ const AdminSlotsPage = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <Label>Duração (min)</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={batchDuration}
-                          onChange={(e) => setBatchDuration(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label>Capacidade</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={batchCapacity}
-                          onChange={(e) => setBatchCapacity(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label>Duração (min)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={batchDuration}
+                        onChange={(e) => setBatchDuration(Number(e.target.value))}
+                        className="bg-background"
+                      />
                     </div>
+
+                    <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
+                      A capacidade permanece automática em 2 lugares lógicos (individual ou dupla).
+                    </p>
                   </div>
                 )}
 
@@ -585,7 +555,8 @@ const AdminSlotsPage = () => {
                       })}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Cap: {slot.capacity} - {slot.status === 'blocked' ? 'Bloqueado' : 'Disponível'}
+                      Modo automático ({slot.status === 'blocked' ? 'Bloqueado' : 'Disponível'}): individual ou dupla conforme
+                      crédito.
                     </p>
                   </div>
                 </div>
