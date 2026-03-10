@@ -534,7 +534,7 @@ const PlansPage = () => {
           </Badge>
           <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
           {selectedPlan?.lesson_plans?.name && (
-            <Badge variant="outline">Plano atual: {selectedPlan.lesson_plans.name}</Badge>
+            <Badge variant="outline">Último plano comprado: {selectedPlan.lesson_plans.name}</Badge>
           )}
         </div>
 
@@ -707,7 +707,7 @@ const PlansPage = () => {
                                 {plan.badge}
                               </Badge>
                             )}
-                            {isSelected && <Badge variant="outline">Plano atual</Badge>}
+                            {isSelected && <Badge variant="outline">Último plano comprado</Badge>}
                           </div>
 
                           <div>
@@ -759,10 +759,10 @@ const PlansPage = () => {
 
                         <Button
                           onClick={() => handleFixedPlanPurchase(purchaseData, plan.id)}
-                          disabled={isApplying || isSelected}
+                          disabled={isApplying}
                           className="mt-auto w-full font-display uppercase tracking-wider"
                         >
-                          {isSelected ? 'Plano atual' : isApplying ? 'Aplicando...' : 'Comprar créditos'}
+                          {isApplying ? 'Aplicando...' : 'Comprar créditos'}
                         </Button>
                       </div>
                     </div>
