@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MessageCircle, PhoneCall } from 'lucide-react';
@@ -9,12 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   formatCurrencyBRL,
-  formatCountdown,
   formatDateTimeBR,
   getClassTypeLabel,
-  getOrderRemainingMs,
   getPlanOrderStatusLabel,
-  isOrderFinalizableStatus,
   type PlanOrder,
   type PlanOrderStatus,
 } from '@/lib/plan-orders';
@@ -32,15 +29,6 @@ const PlanCustomContactPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const [nowMs, setNowMs] = useState(Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['plan-order', orderId, user?.id],
@@ -118,8 +106,6 @@ const PlanCustomContactPage = () => {
   }
 
   const quantity = order.custom_quantity ?? order.credits_amount;
-  const remainingMs = getOrderRemainingMs(order, nowMs);
-  const isFinalizationExpired = remainingMs !== null && remainingMs <= 0 && isOrderFinalizableStatus(order.status);
 
   return (
     <div className="space-y-4 p-4">
@@ -131,22 +117,6 @@ const PlanCustomContactPage = () => {
         <p className="mt-2 text-sm text-muted-foreground">
           O valor deste plano será finalizado diretamente com o professor. Seus créditos só entram após aprovação manual.
         </p>
-        {remainingMs !== null && (
-          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Tempo para finalizar pedido</p>
-            <p className="text-lg font-semibold text-foreground">
-              {isFinalizationExpired ? 'Tempo encerrado' : formatCountdown(remainingMs)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isFinalizationExpired
-                ? 'Crie um novo pedido para continuar.'
-                : 'Se fechar a aba, você encontra este pedido na página de pedidos em andamento.'}
-            </p>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/plans/orders')}>
-              Ir para pedidos em andamento
-            </Button>
-          </div>
-        )}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4">
@@ -191,10 +161,10 @@ const PlanCustomContactPage = () => {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensagem sugerida</p>
           <p className="mt-1 text-sm text-foreground">{whatsappMessage}</p>
         </div>
-        <Button onClick={handleCopyMessage} variant="outline" className="w-full" disabled={isFinalizationExpired}>
+        <Button onClick={handleCopyMessage} variant="outline" className="w-full">
           Copiar mensagem
         </Button>
-        <Button onClick={handleOpenWhatsApp} className="w-full font-display uppercase tracking-wider" disabled={isFinalizationExpired}>
+        <Button onClick={handleOpenWhatsApp} className="w-full font-display uppercase tracking-wider">
           <MessageCircle className="mr-2 h-4 w-4" />
           Entrar em contato no WhatsApp
         </Button>

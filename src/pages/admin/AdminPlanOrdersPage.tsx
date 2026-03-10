@@ -54,6 +54,8 @@ const AdminPlanOrdersPage = () => {
   const { data: orders = [], isLoading, isError } = useQuery<OrderWithNames[]>({
     queryKey: ['admin-plan-orders'],
     queryFn: async () => {
+      await supabase.rpc('expire_stale_plan_orders', { p_user_id: null });
+
       const { data: ordersData, error: ordersError } = await supabase
         .from('plan_orders')
         .select('*')
@@ -175,6 +177,9 @@ const AdminPlanOrdersPage = () => {
           {filteredOrders.map((order) => {
             const isTerminal = order.status === 'approved' || order.status === 'cancelled';
             const isWorking = reviewMutation.isPending && reviewMutation.variables?.orderId === order.id;
+            const canApprove =
+              (order.plan_type === 'fixed' && order.status === 'awaiting_approval') ||
+              (order.plan_type === 'custom' && (order.status === 'awaiting_contact' || order.status === 'awaiting_approval'));
             return (
               <div key={order.id} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -250,7 +255,7 @@ const AdminPlanOrdersPage = () => {
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
                         onClick={() => handleDecision(order.id, 'approve')}
-                        disabled={isWorking}
+                        disabled={isWorking || !canApprove}
                         className="w-full font-display uppercase tracking-wider sm:w-auto"
                       >
                         {isWorking && reviewMutation.variables?.decision === 'approve' ? 'Aprovando...' : 'Aprovar e creditar'}
@@ -264,6 +269,11 @@ const AdminPlanOrdersPage = () => {
                         {isWorking && reviewMutation.variables?.decision === 'cancel' ? 'Cancelando...' : 'Cancelar pedido'}
                       </Button>
                     </div>
+                    {!canApprove && (
+                      <p className="text-xs text-muted-foreground">
+                        Aprovação disponível somente após o aluno informar pagamento (plano fixo) ou após contato confirmado (plano personalizado).
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

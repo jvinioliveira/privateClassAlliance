@@ -109,12 +109,12 @@ const AdminPlansPage = () => {
 
       if (!name.trim()) throw new Error('Informe o nome do plano.');
       if (!isPaymentUrlValid) throw new Error('Link de cartão deve começar com http:// ou https://.');
-      if (!isPixQrUrlValid) throw new Error('URL do QR PIX deve comecar com http:// ou https://.');
-      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor invÃ¡lido.');
+      if (!isPixQrUrlValid) throw new Error('URL do QR PIX deve começar com http:// ou https://.');
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor inválido.');
       if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
-        throw new Error('CrÃ©ditos devem ser inteiros e maiores que zero.');
+        throw new Error('Créditos devem ser inteiros e maiores que zero.');
       }
-      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem invÃ¡lida.');
+      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem inválida.');
 
       const payload = {
         name: name.trim(),
@@ -143,7 +143,7 @@ const AdminPlansPage = () => {
       if (duplicateError) throw duplicateError;
       if (duplicate) {
         throw new Error(
-          `JÃ¡ existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} crÃ©ditos e valor ${formatMoney(payload.price_cents)}.`,
+          `Já existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} créditos e valor ${formatMoney(payload.price_cents)}.`,
         );
       }
 
@@ -165,7 +165,7 @@ const AdminPlansPage = () => {
     },
     onError: (err: Error) => {
       if ((err as unknown as { code?: string }).code === '23505') {
-        toast.error('Plano duplicado para a mesma categoria, crÃ©ditos e valor.');
+        toast.error('Plano duplicado para a mesma categoria, créditos e valor.');
         return;
       }
       toast.error(err.message);
@@ -291,7 +291,7 @@ const AdminPlansPage = () => {
                           {plan.is_active ? 'Ativo' : 'Inativo'}
                         </Badge>
                         <Badge variant="outline">{getClassTypeLabel(plan.planClassType)}</Badge>
-                        <Badge variant="secondary">{plan.credits} CrÃ©ditos</Badge>
+                        <Badge variant="secondary">{plan.credits} Créditos</Badge>
                       </div>
                       {plan.description && <p className="text-sm text-muted-foreground">{plan.description}</p>}
                       <p className="text-sm text-foreground">
@@ -307,7 +307,7 @@ const AdminPlansPage = () => {
                           {plan.pix_code ? 'PIX configurado' : 'PIX pendente'}
                         </Badge>
                         <Badge variant={plan.credit_payment_url ? 'default' : 'outline'}>
-                          {plan.credit_payment_url ? 'Cartao configurado' : 'Cartao pendente'}
+                          {plan.credit_payment_url ? 'Cartão configurado' : 'Cartão pendente'}
                         </Badge>
                       </div>
                     </div>
@@ -360,7 +360,7 @@ const AdminPlansPage = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>DescriÃ§Ã£o</Label>
+              <Label>Descrição</Label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -393,7 +393,7 @@ const AdminPlansPage = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>CrÃ©ditos</Label>
+                <Label>Créditos</Label>
                 <Input
                   type="number"
                   min={1}
@@ -474,7 +474,7 @@ const AdminPlansPage = () => {
               disabled={saveMutation.isPending}
               className="w-full font-display uppercase tracking-wider"
             >
-              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alteraÃ§Ãµes' : 'Criar plano'}
+              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alterações' : 'Criar plano'}
             </Button>
           </div>
         </DialogContent>

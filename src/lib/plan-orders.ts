@@ -89,7 +89,7 @@ export const getClassTypeLabel = (classType: PlanOrderClassType) =>
   classType === 'double' ? 'Dupla' : 'Individual';
 
 export const isOrderFinalizableStatus = (status: PlanOrderStatus) =>
-  status === 'pending_payment' || status === 'awaiting_contact';
+  status === 'pending_payment';
 
 export const getOrderFinalizationDeadlineMs = (createdAt: string) => {
   const createdMs = new Date(createdAt).getTime();

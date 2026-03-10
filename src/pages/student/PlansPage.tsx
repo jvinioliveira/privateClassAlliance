@@ -295,6 +295,8 @@ const PlansPage = () => {
     queryFn: async () => {
       if (!user) return [];
 
+      await supabase.rpc('expire_stale_plan_orders', { p_user_id: user.id });
+
       const { data, error } = await supabase
         .from('plan_orders')
         .select('*')
@@ -336,7 +338,7 @@ const PlansPage = () => {
       return data;
     },
     onSuccess: (orderId) => {
-      toast.success('Solicitacao personalizada criada.');
+      toast.success('Solicitação personalizada criada.');
       queryClient.invalidateQueries({ queryKey: ['plan-orders'] });
       queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
       navigate(`/plans/custom/${orderId}`);
@@ -538,9 +540,9 @@ const PlansPage = () => {
 
         {latestOpenOrder && (
           <div className="rounded-lg border border-primary/30 bg-primary/10 p-3">
-            <p className="text-sm font-medium text-foreground">Voce tem um pedido em andamento.</p>
+            <p className="text-sm font-medium text-foreground">Você tem um pedido em andamento.</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Se fechar a aba, retome depois na pagina de pedidos em andamento.
+              Se fechar a aba, retome depois na página de pedidos em andamento.
             </p>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <Button
@@ -553,7 +555,7 @@ const PlansPage = () => {
                   )
                 }
               >
-                Continuar ultimo pedido
+                Continuar último pedido
               </Button>
               <Button variant="ghost" onClick={() => navigate('/plans/orders')}>
                 Ver pedidos em andamento

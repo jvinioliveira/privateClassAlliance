@@ -44,6 +44,8 @@ const PlanOrdersPage = () => {
     queryFn: async () => {
       if (!user) return [] as PlanOrder[];
 
+      await supabase.rpc('expire_stale_plan_orders', { p_user_id: user.id });
+
       const { data, error } = await supabase
         .from('plan_orders')
         .select('*')
@@ -108,7 +110,7 @@ const PlanOrdersPage = () => {
                     <p className="font-medium text-foreground">{getClassTypeLabel(order.class_type)}</p>
                   </div>
                   <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                    <p className="text-muted-foreground">Creditos</p>
+                    <p className="text-muted-foreground">Créditos</p>
                     <p className="font-medium text-foreground">{order.credits_amount}</p>
                   </div>
                   <div className="rounded-md border border-border/70 bg-background/60 p-2">
@@ -126,9 +128,7 @@ const PlanOrdersPage = () => {
                   {order.remainingMs !== null && (
                     <div className="rounded-md border border-border/70 bg-background/60 p-2">
                       <p className="text-muted-foreground">Tempo restante</p>
-                      <p className="font-medium text-foreground">
-                        {isExpired ? 'Encerrado' : formatCountdown(order.remainingMs)}
-                      </p>
+                      <p className="font-medium text-foreground">{isExpired ? 'Encerrado' : formatCountdown(order.remainingMs)}</p>
                     </div>
                   )}
                 </div>

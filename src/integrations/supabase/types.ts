@@ -678,6 +678,7 @@ export type Database = {
         Returns: string
       }
       create_fixed_plan_order: { Args: { p_plan_id: string }; Returns: string }
+      expire_stale_plan_orders: { Args: { p_user_id?: string | null }; Returns: number }
       get_month_ref: { Args: { ts: string }; Returns: string }
       get_month_report: { Args: { p_month_ref: string }; Returns: Json }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
