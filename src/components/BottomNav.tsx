@@ -33,7 +33,7 @@ const BottomNav = ({ items }: BottomNavProps) => {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  'group flex min-h-[56px] flex-col items-center justify-center rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
+                  'group flex min-h-[42px] flex-col items-center justify-center rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
                   isActive
                     ? 'bg-primary/12 text-primary'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',

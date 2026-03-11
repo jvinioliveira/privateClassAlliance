@@ -233,6 +233,8 @@ const AdminDashboard = () => {
           datesSet={(info: DatesSetArg) => setDateRange({ start: info.startStr, end: info.endStr })}
           height="auto"
           eventDisplay="block"
+          dayMaxEvents={false}
+          dayMaxEventRows={false}
           buttonText={{
             today: 'Hoje',
             month: 'Mês',

@@ -79,17 +79,19 @@ const AdminPlanOrdersPage = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithNames | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const normalizedStatusFilterKey = useMemo(() => [...selectedStatuses].sort().join(','), [selectedStatuses]);
 
-  const { data: orders = [], isLoading, isError } = useQuery<OrderWithNames[]>({
-    queryKey: ['admin-plan-orders'],
+  const { data, isLoading, isError } = useQuery<{ orders: OrderWithNames[]; totalCount: number }>({
+    queryKey: ['admin-plan-orders', normalizedStatusFilterKey, currentPage],
     queryFn: async () => {
       await supabase.rpc('expire_stale_plan_orders', { p_user_id: null });
 
-      const { data: ordersData, error: ordersError } = await supabase
+      const { data: ordersData, error: ordersError, count } = await supabase
         .from('plan_orders')
-        .select('*')
+        .select('*', { count: 'exact' })
+        .in('status', selectedStatuses)
         .order('created_at', { ascending: false })
-        .limit(300);
+        .range(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE - 1);
 
       if (ordersError) throw ordersError;
 
@@ -119,20 +121,23 @@ const AdminPlanOrdersPage = () => {
         );
       }
 
-      return rawOrders.map((order) => ({
+      const mappedOrders = rawOrders.map((order) => ({
         ...order,
         studentName: getDisplayName(profileById.get(order.user_id)),
         approverName: order.approved_by ? getDisplayName(profileById.get(order.approved_by)) : null,
       }));
+
+      return {
+        orders: mappedOrders,
+        totalCount: count ?? 0,
+      };
     },
+    placeholderData: (previous) => previous,
   });
 
-  const filteredOrders = useMemo(
-    () => orders.filter((order) => selectedStatuses.includes(order.status)),
-    [orders, selectedStatuses],
-  );
-
-  const totalPages = Math.max(Math.ceil(filteredOrders.length / PAGE_SIZE), 1);
+  const paginatedOrders = data?.orders ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.max(Math.ceil(totalCount / PAGE_SIZE), 1);
 
   useEffect(() => {
     if (currentPage > totalPages - 1) {
@@ -158,12 +163,6 @@ const AdminPlanOrdersPage = () => {
 
     void markAdminOrderNotificationsAsRead();
   }, [user, queryClient]);
-
-  const paginatedOrders = useMemo(() => {
-    const from = currentPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE;
-    return filteredOrders.slice(from, to);
-  }, [filteredOrders, currentPage]);
 
   const reviewMutation = useMutation({
     mutationFn: async ({
@@ -252,7 +251,7 @@ const AdminPlanOrdersPage = () => {
         </DropdownMenu>
 
         <div className="text-xs text-muted-foreground">
-          Mostrando {paginatedOrders.length} de {filteredOrders.length} pedidos
+          Mostrando {paginatedOrders.length} de {totalCount} pedidos
         </div>
       </div>
 

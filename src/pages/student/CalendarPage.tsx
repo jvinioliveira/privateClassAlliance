@@ -97,7 +97,7 @@ const getSlotUnavailabilityInfo = (slotStartIso: string, nowMs = Date.now()) => 
   if (!Number.isFinite(slotStartMs)) {
     return {
       isUnavailableByTime: true,
-      unavailableReason: 'Este horÃ¡rio estÃ¡ indisponÃ­vel.',
+      unavailableReason: 'Este horário está indisponível.',
     };
   }
 
@@ -105,14 +105,14 @@ const getSlotUnavailabilityInfo = (slotStartIso: string, nowMs = Date.now()) => 
   if (diffMs <= 0) {
     return {
       isUnavailableByTime: true,
-      unavailableReason: 'Este horÃ¡rio estÃ¡ indisponÃ­vel porque jÃ¡ passou.',
+      unavailableReason: 'Este horário está indisponível porque já passou.',
     };
   }
 
   if (diffMs <= BOOKING_MIN_LEAD_MINUTES * 60 * 1000) {
     return {
       isUnavailableByTime: true,
-      unavailableReason: 'Agendamento indisponÃ­vel com menos de 30 minutos de antecedÃªncia.',
+      unavailableReason: 'Agendamento indisponível com menos de 30 minutos de antecedência.',
     };
   }
 
@@ -281,10 +281,10 @@ const CalendarPage = () => {
       const statusLabel = isMine
         ? 'Agendado'
         : isUnavailableByTime
-        ? 'IndisponÃ­vel'
+        ? 'Indisponível'
         : isFull
         ? 'Ocupado'
-        : 'DisponÃ­vel';
+        : 'Disponível';
 
       return {
         id: slot.id,
@@ -360,7 +360,7 @@ const CalendarPage = () => {
   const waitlistMutation = useMutation({
     mutationFn: (slotId: string) => joinWaitlist(slotId),
     onSuccess: () => {
-      toast.success('Adicionado Ã  lista de espera!');
+      toast.success('Adicionado à lista de espera!');
       setSelectedSlot(null);
     },
     onError: (err: unknown) => {
@@ -498,11 +498,11 @@ const CalendarPage = () => {
           datesSet={handleDatesSet}
           height="auto"
           eventDisplay="block"
-          dayMaxEvents={isMobile ? false : 3}
-          dayMaxEventRows={isMobile ? false : undefined}
+          dayMaxEvents={false}
+          dayMaxEventRows={false}
           buttonText={{
             today: 'Hoje',
-            month: 'MÃªs',
+            month: 'Mês',
             week: 'Semana',
             day: 'Dia',
           }}
@@ -512,8 +512,8 @@ const CalendarPage = () => {
       <button
         type="button"
         onClick={() => navigate('/plans')}
-        aria-label="Comprar crÃ©ditos"
-        title="Comprar crÃ©ditos"
+        aria-label="Comprar créditos"
+        title="Comprar créditos"
         className="credit-shortcut-animate fixed right-4 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 sm:h-14 sm:w-14"
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 6.75rem)' }}
       >
@@ -534,9 +534,9 @@ const CalendarPage = () => {
               {selectedSlot?.isMine
                 ? 'Aula agendada'
                 : isSelectedSlotUnavailableByTime
-                ? 'HorÃ¡rio indisponÃ­vel'
+                ? 'Horário indisponível'
                 : selectedSlot?.isFull
-                ? 'HorÃ¡rio ocupado'
+                ? 'Horário ocupado'
                 : 'Agendar aula'}
             </DialogTitle>
           </DialogHeader>
@@ -558,24 +558,24 @@ const CalendarPage = () => {
 
               <div className="flex items-center gap-2">
                 <Badge variant={isSelectedSlotUnavailableByTime ? 'secondary' : selectedSlot.isFull ? 'destructive' : 'default'}>
-                  {isSelectedSlotUnavailableByTime ? 'IndisponÃ­vel' : selectedSlot.isFull ? 'Ocupado' : 'DisponÃ­vel'}
+                  {isSelectedSlotUnavailableByTime ? 'Indisponível' : selectedSlot.isFull ? 'Ocupado' : 'Disponível'}
                 </Badge>
               </div>
 
               {selectedSlot.isMine ? (
-                <p className="text-sm text-muted-foreground">VocÃª jÃ¡ estÃ¡ agendado para este horÃ¡rio.</p>
+                <p className="text-sm text-muted-foreground">Você já está agendado para este horário.</p>
               ) : isSelectedSlotUnavailableByTime ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <span>{selectedSlotUnavailableReason || 'Este horÃ¡rio estÃ¡ indisponÃ­vel para agendamento.'}</span>
+                    <span>{selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.'}</span>
                   </div>
                 </div>
               ) : selectedSlot.isFull ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <span>Este horÃ¡rio jÃ¡ estÃ¡ ocupado.</span>
+                    <span>Este horário já está ocupado.</span>
                   </div>
                   <Button
                     onClick={() => waitlistMutation.mutate(selectedSlot.id)}
@@ -590,16 +590,16 @@ const CalendarPage = () => {
                 <div className="space-y-4">
                   {isLoadingWallets ? (
                     <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">Carregando seus crÃ©ditos...</p>
+                      <p className="text-sm text-muted-foreground">Carregando seus créditos...</p>
                     </div>
                   ) : hasNoCredits ? (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <AlertTriangle className="h-4 w-4 text-destructive" />
-                        <span>VocÃª nÃ£o tem crÃ©ditos ativos para agendar este horÃ¡rio.</span>
+                        <span>Você não tem créditos ativos para agendar este horário.</span>
                       </div>
                       <Button variant="outline" className="w-full" onClick={() => navigate('/plans')}>
-                        Comprar crÃ©ditos
+                        Comprar créditos
                       </Button>
                     </div>
                   ) : (
@@ -639,18 +639,18 @@ const CalendarPage = () => {
                           </>
                         ) : onlyIndividualCredit ? (
                           <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
-                            Seus crÃ©ditos ativos sÃ£o individuais. O agendamento serÃ¡ feito automaticamente como aula individual.
+                            Seus créditos ativos são individuais. O agendamento será feito automaticamente como aula individual.
                           </p>
                         ) : onlyDoubleCredit ? (
                           <p className="rounded-md border border-border/70 bg-background/60 p-2 text-xs text-muted-foreground">
-                            Seus crÃ©ditos ativos sÃ£o em dupla. O agendamento serÃ¡ feito automaticamente como aula em dupla.
+                            Seus créditos ativos são em dupla. O agendamento será feito automaticamente como aula em dupla.
                           </p>
                         ) : null}
 
                         {bookingType === 2 && (
                           <div className="space-y-2">
                             <p className="text-xs text-muted-foreground">
-                              Aula em dupla exige crÃ©dito de dupla e nome/sobrenome do parceiro (aluno cadastrado).
+                              Aula em dupla exige crédito de dupla e nome/sobrenome do parceiro (aluno cadastrado).
                             </p>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                               <Input
@@ -678,27 +678,27 @@ const CalendarPage = () => {
                       <Button
                         onClick={() => {
                           if (isSelectedSlotUnavailableByTime) {
-                            toast.error(selectedSlotUnavailableReason || 'Este horÃ¡rio estÃ¡ indisponÃ­vel para agendamento.');
+                            toast.error(selectedSlotUnavailableReason || 'Este horário está indisponível para agendamento.');
                             return;
                           }
 
                           if (hasNoCredits) {
-                            toast.error('VocÃª nÃ£o possui crÃ©ditos ativos para agendar.');
+                            toast.error('Você não possui créditos ativos para agendar.');
                             return;
                           }
 
                           if (isLoadingWallets) {
-                            toast.error('Aguarde o carregamento dos crÃ©ditos para continuar.');
+                            toast.error('Aguarde o carregamento dos créditos para continuar.');
                             return;
                           }
 
                           if (bookingType === 1 && !hasIndividualCredit) {
-                            toast.error('VocÃª nÃ£o possui crÃ©ditos de aula individual.');
+                            toast.error('Você não possui créditos de aula individual.');
                             return;
                           }
 
                           if (bookingType === 2 && !hasDoubleCredit) {
-                            toast.error('VocÃª nÃ£o possui crÃ©ditos de aula em dupla.');
+                            toast.error('Você não possui créditos de aula em dupla.');
                             return;
                           }
 

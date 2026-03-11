@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
 import type { DatesSetArg, EventClickArg } from '@fullcalendar/core';
@@ -110,6 +109,7 @@ const AdminBulkSchedulePage = () => {
   const isMobile = useIsMobile();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
+  const [seatsReservedDefault, setSeatsReservedDefault] = useState<1 | 2>(1);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [results, setResults] = useState<BulkBookResult[]>([]);
 
@@ -160,7 +160,7 @@ const AdminBulkSchedulePage = () => {
   const calendarWindow = useMemo(() => getCalendarWindow(slots), [slots]);
 
   const bulkMutation = useMutation({
-    mutationFn: () => adminBulkBook(selectedStudentId, selectedSlotIds, 1),
+    mutationFn: () => adminBulkBook(selectedStudentId, selectedSlotIds, seatsReservedDefault),
     onSuccess: (data) => {
       const rows = Array.isArray(data) ? (data as BulkBookResult[]) : [];
       setResults(rows);
@@ -202,6 +202,19 @@ const AdminBulkSchedulePage = () => {
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label>Tipo de aula para o lote</Label>
+          <Select value={String(seatsReservedDefault)} onValueChange={(value) => setSeatsReservedDefault(value === '2' ? 2 : 1)}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Selecione o tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Individual</SelectItem>
+              <SelectItem value="2">Dupla</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <p className="text-sm text-muted-foreground">
           Clique nos horários para selecionar ({selectedSlotIds.length} selecionados)
         </p>
@@ -229,6 +242,8 @@ const AdminBulkSchedulePage = () => {
           datesSet={(info: DatesSetArg) => setDateRange({ start: info.startStr, end: info.endStr })}
           height="auto"
           eventDisplay="block"
+          dayMaxEvents={false}
+          dayMaxEventRows={false}
           buttonText={{ week: 'Semana', day: 'Dia' }}
         />
       </div>
@@ -241,7 +256,7 @@ const AdminBulkSchedulePage = () => {
         >
           {bulkMutation.isPending
             ? 'Agendando...'
-            : `Agendar ${selectedSlotIds.length} aula(s)`}
+            : `Agendar ${selectedSlotIds.length} aula(s) ${seatsReservedDefault === 2 ? 'em dupla' : 'individual'}`}
         </Button>
       )}
 

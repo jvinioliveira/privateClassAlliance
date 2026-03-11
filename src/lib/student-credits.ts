@@ -4,6 +4,7 @@ type PurchaseRowRaw = {
   id: string;
   student_id: string;
   plan_id: string | null;
+  class_type: string | null;
   credits: number;
   remaining_credits: number | null;
   price_cents: number;
@@ -38,7 +39,7 @@ export type StudentCreditSummary = {
 };
 
 const baseSelect =
-  'id, student_id, plan_id, credits, remaining_credits, price_cents, status, selected_at, expires_at, lesson_plans(name, class_type)';
+  'id, student_id, plan_id, class_type, credits, remaining_credits, price_cents, status, selected_at, expires_at, lesson_plans(name, class_type)';
 
 const normalizePurchase = (row: PurchaseRowRaw): StudentCreditPurchase => {
   const safeCredits = Math.max(Number(row.credits) || 0, 0);
@@ -56,13 +57,26 @@ const normalizePurchase = (row: PurchaseRowRaw): StudentCreditPurchase => {
     selectedAt: row.selected_at,
     expiresAt: row.expires_at,
     planName: row.lesson_plans?.name ?? null,
-    classType: row.lesson_plans?.class_type ?? null,
+    classType: row.class_type ?? row.lesson_plans?.class_type ?? null,
   };
 };
 
+const getLatestWallets = (purchases: StudentCreditPurchase[]) => {
+  const latestByType = new Map<'individual' | 'double', StudentCreditPurchase>();
+
+  for (const purchase of purchases) {
+    const classType = purchase.classType === 'double' ? 'double' : 'individual';
+    if (!latestByType.has(classType)) {
+      latestByType.set(classType, purchase);
+    }
+  }
+
+  return Array.from(latestByType.values());
+};
+
 export const buildStudentCreditSummary = (purchases: StudentCreditPurchase[]): StudentCreditSummary => {
-  const latest = purchases[0];
-  if (!latest) {
+  const latestWallets = getLatestWallets(purchases);
+  if (!latestWallets.length) {
     return {
       totalCredits: 0,
       usedCredits: 0,
@@ -72,16 +86,22 @@ export const buildStudentCreditSummary = (purchases: StudentCreditPurchase[]): S
   }
 
   const nowMs = Date.now();
-  const expiresAtMs = new Date(latest.expiresAt).getTime();
-  const hasValidBalance = Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
-  const remainingCredits = hasValidBalance ? latest.remainingCredits : 0;
-  const usedCredits = 0;
-  const totalCredits = remainingCredits;
-  const nextExpirationAt = hasValidBalance && remainingCredits > 0 ? latest.expiresAt : null;
+  const validWallets = latestWallets.filter((wallet) => {
+    const expiresAtMs = new Date(wallet.expiresAt).getTime();
+    return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs && wallet.remainingCredits > 0;
+  });
+
+  const remainingCredits = validWallets.reduce((sum, wallet) => sum + wallet.remainingCredits, 0);
+  const nextExpirationAt =
+    validWallets.length > 0
+      ? [...validWallets]
+          .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())[0]
+          .expiresAt
+      : null;
 
   return {
-    totalCredits,
-    usedCredits,
+    totalCredits: remainingCredits,
+    usedCredits: 0,
     remainingCredits,
     nextExpirationAt,
   };
@@ -95,7 +115,7 @@ export const fetchActiveStudentCreditPurchases = async (studentId: string): Prom
     .eq('status', 'active')
     .order('selected_at', { ascending: false })
     .order('updated_at', { ascending: false })
-    .limit(1);
+    .limit(200);
 
   if (error) throw error;
   return ((data ?? []) as unknown as PurchaseRowRaw[]).map(normalizePurchase);
@@ -104,34 +124,36 @@ export const fetchActiveStudentCreditPurchases = async (studentId: string): Prom
 export const fetchStudentCreditSummary = async (studentId: string): Promise<StudentCreditSummary> => {
   const purchases = await fetchActiveStudentCreditPurchases(studentId);
   const base = buildStudentCreditSummary(purchases);
-  const latest = purchases[0];
-  if (!latest || base.remainingCredits <= 0) return base;
+  const latestWallets = getLatestWallets(purchases);
 
+  if (!latestWallets.length) return base;
+
+  const selectionIds = latestWallets.map((wallet) => wallet.id);
   const untypedSupabase = supabase as unknown as {
     from: (table: string) => {
-      select: (
-        columns: string,
-        options: { count: 'exact'; head: true },
-      ) => {
+      select: (columns: string) => {
         eq: (column: string, value: string) => {
           is: (column: string, value: null) => {
-            gte: (column: string, value: string) => Promise<{ count: number | null; error: Error | null }>;
+            in: (
+              column: string,
+              values: string[],
+            ) => Promise<{ data: Array<{ selection_id: string | null }> | null; error: Error | null }>;
           };
         };
       };
     };
   };
 
-  const { count, error } = await untypedSupabase
+  const { data, error } = await untypedSupabase
     .from('student_credit_usages')
-    .select('id', { count: 'exact', head: true })
+    .select('selection_id')
     .eq('student_id', studentId)
     .is('restored_at', null)
-    .gte('consumed_at', latest.selectedAt);
+    .in('selection_id', selectionIds);
 
   if (error) throw error;
 
-  const usedCredits = count ?? 0;
+  const usedCredits = (data ?? []).length;
   const totalCredits = base.remainingCredits + usedCredits;
 
   return {

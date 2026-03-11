@@ -102,8 +102,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (nextSession?.user) {
           await fetchProfile(nextSession.user.id);
         }
-      } catch (error) {
-        console.error('Failed to load profile', error);
+      } catch {
+        setProfile(null);
       } finally {
         if (mounted) setLoading(false);
       }

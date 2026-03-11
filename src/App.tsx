@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,39 +12,35 @@ import {
   getRecentLastRoute,
 } from "@/lib/session-state";
 
-// Auth pages
-import LoginPage from "@/pages/LoginPage";
-import SignupPage from "@/pages/SignupPage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import AuthPopupCallbackPage from "@/pages/AuthPopupCallbackPage";
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const SignupPage = lazy(() => import("@/pages/SignupPage"));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
+const AuthPopupCallbackPage = lazy(() => import("@/pages/AuthPopupCallbackPage"));
 
-// Layouts
-import StudentLayout from "@/layouts/StudentLayout";
-import AdminLayout from "@/layouts/AdminLayout";
+const StudentLayout = lazy(() => import("@/layouts/StudentLayout"));
+const AdminLayout = lazy(() => import("@/layouts/AdminLayout"));
 
-// Student pages
-import StudentHomePage from "@/pages/student/StudentHomePage";
-import CalendarPage from "@/pages/student/CalendarPage";
-import MyBookingsPage from "@/pages/student/MyBookingsPage";
-import NotificationsPage from "@/pages/student/NotificationsPage";
-import NotificationsHistoryPage from "@/pages/student/NotificationsHistoryPage";
-import ProfilePage from "@/pages/student/ProfilePage";
-import PlansPage from "@/pages/student/PlansPage";
-import PlanCheckoutPage from "@/pages/student/PlanCheckoutPage";
-import PlanCustomContactPage from "@/pages/student/PlanCustomContactPage";
-import PlanOrdersPage from "@/pages/student/PlanOrdersPage";
+const StudentHomePage = lazy(() => import("@/pages/student/StudentHomePage"));
+const CalendarPage = lazy(() => import("@/pages/student/CalendarPage"));
+const MyBookingsPage = lazy(() => import("@/pages/student/MyBookingsPage"));
+const NotificationsPage = lazy(() => import("@/pages/student/NotificationsPage"));
+const NotificationsHistoryPage = lazy(() => import("@/pages/student/NotificationsHistoryPage"));
+const ProfilePage = lazy(() => import("@/pages/student/ProfilePage"));
+const PlansPage = lazy(() => import("@/pages/student/PlansPage"));
+const PlanCheckoutPage = lazy(() => import("@/pages/student/PlanCheckoutPage"));
+const PlanCustomContactPage = lazy(() => import("@/pages/student/PlanCustomContactPage"));
+const PlanOrdersPage = lazy(() => import("@/pages/student/PlanOrdersPage"));
 
-// Admin pages
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminSlotsPage from "@/pages/admin/AdminSlotsPage";
-import AdminBookingsPage from "@/pages/admin/AdminBookingsPage";
-import AdminStudentsPage from "@/pages/admin/AdminStudentsPage";
-import AdminBulkSchedulePage from "@/pages/admin/AdminBulkSchedulePage";
-import AdminReportsPage from "@/pages/admin/AdminReportsPage";
-import AdminPlansPage from "@/pages/admin/AdminPlansPage";
-import AdminPlanOrdersPage from "@/pages/admin/AdminPlanOrdersPage";
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminSlotsPage = lazy(() => import("@/pages/admin/AdminSlotsPage"));
+const AdminBookingsPage = lazy(() => import("@/pages/admin/AdminBookingsPage"));
+const AdminStudentsPage = lazy(() => import("@/pages/admin/AdminStudentsPage"));
+const AdminBulkSchedulePage = lazy(() => import("@/pages/admin/AdminBulkSchedulePage"));
+const AdminReportsPage = lazy(() => import("@/pages/admin/AdminReportsPage"));
+const AdminPlansPage = lazy(() => import("@/pages/admin/AdminPlansPage"));
+const AdminPlanOrdersPage = lazy(() => import("@/pages/admin/AdminPlanOrdersPage"));
 
-import NotFound from "./pages/NotFound";
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const LAST_ROUTE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
@@ -54,6 +51,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const AppSuspenseFallback = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
 
 const HomeRedirect = () => {
   const { user, profile, loading } = useAuth();
@@ -84,43 +87,45 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<HomeRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
+          <Suspense fallback={<AppSuspenseFallback />}>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<HomeRedirect />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
 
-            {/* Student */}
-            <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
-              <Route path="/home" element={<StudentHomePage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/my-bookings" element={<MyBookingsPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/plans" element={<PlansPage />} />
-              <Route path="/plans/orders" element={<PlanOrdersPage />} />
-              <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
-              <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
-            </Route>
+              {/* Student */}
+              <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
+                <Route path="/home" element={<StudentHomePage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/my-bookings" element={<MyBookingsPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/plans/orders" element={<PlanOrdersPage />} />
+                <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
+                <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
+              </Route>
 
-            {/* Admin */}
-            <Route element={<ProtectedRoute requireAdmin><AdminLayout /></ProtectedRoute>}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/slots" element={<AdminSlotsPage />} />
-              <Route path="/admin/bookings" element={<AdminBookingsPage />} />
-              <Route path="/admin/students" element={<AdminStudentsPage />} />
-              <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
-              <Route path="/admin/reports" element={<AdminReportsPage />} />
-              <Route path="/admin/plans" element={<AdminPlansPage />} />
-              <Route path="/admin/plan-orders" element={<AdminPlanOrdersPage />} />
-              <Route path="/admin/profile" element={<ProfilePage />} />
-            </Route>
+              {/* Admin */}
+              <Route element={<ProtectedRoute requireAdmin><AdminLayout /></ProtectedRoute>}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/slots" element={<AdminSlotsPage />} />
+                <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+                <Route path="/admin/students" element={<AdminStudentsPage />} />
+                <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
+                <Route path="/admin/reports" element={<AdminReportsPage />} />
+                <Route path="/admin/plans" element={<AdminPlansPage />} />
+                <Route path="/admin/plan-orders" element={<AdminPlanOrdersPage />} />
+                <Route path="/admin/profile" element={<ProfilePage />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
