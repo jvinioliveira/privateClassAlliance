@@ -53,8 +53,8 @@ const getPaymentLinkWarning = (plan: Pick<LessonPlanRow, 'credit_payment_url' | 
   if (!Number.isFinite(updatedAtMs)) {
     return {
       badgeVariant: 'secondary',
-      label: 'Validade do link indisponÃ­vel',
-      details: 'NÃ£o foi possÃ­vel calcular o prazo deste link.',
+      label: 'Validade do link indisponível',
+      details: 'Não foi possível calcular o prazo deste link.',
     };
   }
 
@@ -66,7 +66,7 @@ const getPaymentLinkWarning = (plan: Pick<LessonPlanRow, 'credit_payment_url' | 
     return {
       badgeVariant: 'destructive',
       label: 'Link NuPay possivelmente expirado',
-      details: `Ãšltima atualizaÃ§Ã£o hÃ¡ ${formatDayCount(elapsedDays)}.`,
+      details: `Última atualização há ${formatDayCount(elapsedDays)}.`,
     };
   }
 
@@ -74,7 +74,7 @@ const getPaymentLinkWarning = (plan: Pick<LessonPlanRow, 'credit_payment_url' | 
     return {
       badgeVariant: 'secondary',
       label: `Link NuPay expira em ${formatDayCount(remainingDays)}`,
-      details: `Ãšltima atualizaÃ§Ã£o hÃ¡ ${formatDayCount(elapsedDays)}.`,
+      details: `Última atualização há ${formatDayCount(elapsedDays)}.`,
     };
   }
 
@@ -95,14 +95,10 @@ const AdminPlansPage = () => {
   const [priceReais, setPriceReais] = useState('100.00');
   const [sortOrder, setSortOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
-  const [pixCode, setPixCode] = useState('');
-  const [pixQrImageUrl, setPixQrImageUrl] = useState('');
   const [creditPaymentUrl, setCreditPaymentUrl] = useState('');
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<PlanWithMetrics | null>(null);
-  const [paymentPixCode, setPaymentPixCode] = useState('');
-  const [paymentPixQrImageUrl, setPaymentPixQrImageUrl] = useState('');
   const [paymentCreditPaymentUrl, setPaymentCreditPaymentUrl] = useState('');
   const [selectedPaymentClassType, setSelectedPaymentClassType] = useState<PlanClassType | null>(null);
 
@@ -130,8 +126,6 @@ const AdminPlansPage = () => {
     setPriceReais('100.00');
     setSortOrder(0);
     setIsActive(true);
-    setPixCode('');
-    setPixQrImageUrl('');
     setCreditPaymentUrl('');
   };
 
@@ -150,16 +144,12 @@ const AdminPlansPage = () => {
     setPriceReais((plan.price_cents / 100).toFixed(2));
     setSortOrder(plan.sort_order);
     setIsActive(plan.is_active);
-    setPixCode(plan.pix_code || '');
-    setPixQrImageUrl(plan.pix_qr_image_url || '');
     setCreditPaymentUrl(plan.credit_payment_url || '');
     setOpen(true);
   };
 
   const openPaymentDialog = (plan: PlanWithMetrics) => {
     setPaymentPlan(plan);
-    setPaymentPixCode(plan.pix_code || '');
-    setPaymentPixQrImageUrl(plan.pix_qr_image_url || '');
     setPaymentCreditPaymentUrl(plan.credit_payment_url || '');
     setPaymentDialogOpen(true);
   };
@@ -167,8 +157,6 @@ const AdminPlansPage = () => {
   const closePaymentDialog = () => {
     setPaymentDialogOpen(false);
     setPaymentPlan(null);
-    setPaymentPixCode('');
-    setPaymentPixQrImageUrl('');
     setPaymentCreditPaymentUrl('');
   };
 
@@ -179,18 +167,16 @@ const AdminPlansPage = () => {
       const parsedCredits = Number(credits);
       const parsedSortOrder = Number(sortOrder);
       const normalizedCreditPaymentUrl = creditPaymentUrl.trim();
-      const normalizedPixQrImageUrl = pixQrImageUrl.trim();
-      const isPaymentUrlValid = !normalizedCreditPaymentUrl || /^https?:\/\//i.test(normalizedCreditPaymentUrl);
-      const isPixQrUrlValid = !normalizedPixQrImageUrl || /^https?:\/\//i.test(normalizedPixQrImageUrl);
+      const isPaymentUrlValid = /^https?:\/\//i.test(normalizedCreditPaymentUrl);
 
       if (!name.trim()) throw new Error('Informe o nome do plano.');
+      if (!normalizedCreditPaymentUrl) throw new Error('Informe o link de pagamento NuPay.');
       if (!isPaymentUrlValid) throw new Error('Link NuPay deve começar com http:// ou https://.');
-      if (!isPixQrUrlValid) throw new Error('URL do QR PIX deve comeÃ§ar com http:// ou https://.');
-      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor invÃ¡lido.');
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor inválido.');
       if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
-        throw new Error('CrÃ©ditos devem ser inteiros e maiores que zero.');
+        throw new Error('Créditos devem ser inteiros e maiores que zero.');
       }
-      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem invÃ¡lida.');
+      if (!Number.isFinite(parsedSortOrder)) throw new Error('Ordem inválida.');
 
       const payload = {
         name: name.trim(),
@@ -200,9 +186,9 @@ const AdminPlansPage = () => {
         price_cents: Math.round(parsedPrice * 100),
         sort_order: Math.trunc(parsedSortOrder),
         is_active: isActive,
-        pix_code: pixCode.trim() || null,
-        pix_qr_image_url: normalizedPixQrImageUrl || null,
-        credit_payment_url: normalizedCreditPaymentUrl || null,
+        pix_code: null,
+        pix_qr_image_url: null,
+        credit_payment_url: normalizedCreditPaymentUrl,
       };
 
       const duplicateQuery = supabase
@@ -219,7 +205,7 @@ const AdminPlansPage = () => {
       if (duplicateError) throw duplicateError;
       if (duplicate) {
         throw new Error(
-          `JÃ¡ existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} crÃ©ditos e valor ${formatMoney(payload.price_cents)}.`,
+          `Já existe um plano ${getClassTypeLabel(classType).toLowerCase()} com ${parsedCredits} créditos e valor ${formatMoney(payload.price_cents)}.`,
         );
       }
 
@@ -241,7 +227,7 @@ const AdminPlansPage = () => {
     },
     onError: (err: Error) => {
       if ((err as { code?: string }).code === '23505') {
-        toast.error('Plano duplicado para a mesma categoria, crÃ©ditos e valor.');
+        toast.error('Plano duplicado para a mesma categoria, créditos e valor.');
         return;
       }
       toast.error(err.message);
@@ -250,27 +236,25 @@ const AdminPlansPage = () => {
 
   const savePaymentConfigMutation = useMutation({
     mutationFn: async () => {
-      if (!paymentPlan) throw new Error('Plano invÃ¡lido para configuraÃ§Ã£o de pagamento.');
+      if (!paymentPlan) throw new Error('Plano inválido para configuração de pagamento.');
 
-      const normalizedPixQrImageUrl = paymentPixQrImageUrl.trim();
       const normalizedCreditPaymentUrl = paymentCreditPaymentUrl.trim();
-      const isPixQrUrlValid = !normalizedPixQrImageUrl || /^https?:\/\//i.test(normalizedPixQrImageUrl);
-      const isCreditUrlValid = !normalizedCreditPaymentUrl || /^https?:\/\//i.test(normalizedCreditPaymentUrl);
+      const isCreditUrlValid = /^https?:\/\//i.test(normalizedCreditPaymentUrl);
 
-      if (!isPixQrUrlValid) throw new Error('URL do QR PIX deve comeÃ§ar com http:// ou https://.');
+      if (!normalizedCreditPaymentUrl) throw new Error('Informe o link de pagamento NuPay.');
       if (!isCreditUrlValid) throw new Error('Link NuPay deve começar com http:// ou https://.');
 
       const payload = {
-        pix_code: paymentPixCode.trim() || null,
-        pix_qr_image_url: normalizedPixQrImageUrl || null,
-        credit_payment_url: normalizedCreditPaymentUrl || null,
+        pix_code: null,
+        pix_qr_image_url: null,
+        credit_payment_url: normalizedCreditPaymentUrl,
       };
 
       const { error } = await supabase.from('lesson_plans').update(payload).eq('id', paymentPlan.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('ConfiguraÃ§Ã£o de pagamento salva.');
+      toast.success('Configuração de pagamento salva.');
       closePaymentDialog();
       queryClient.invalidateQueries({ queryKey: ['admin-lesson-plans'] });
       queryClient.invalidateQueries({ queryKey: ['student-lesson-plans'] });
@@ -341,7 +325,6 @@ const AdminPlansPage = () => {
             </div>
             <p className="text-xs text-muted-foreground">Valor pré-definido: {formatMoney(plan.price_cents)}</p>
             <div className="flex flex-wrap gap-2">
-              <Badge variant={plan.pix_code ? 'default' : 'outline'}>{plan.pix_code ? 'PIX configurado' : 'PIX pendente'}</Badge>
               <Badge variant={plan.credit_payment_url ? 'default' : 'outline'}>
                 {plan.credit_payment_url ? 'NuPay configurado' : 'NuPay pendente'}
               </Badge>
@@ -401,7 +384,7 @@ const AdminPlansPage = () => {
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <p className="text-sm text-muted-foreground">
-                    Clique em um plano para abrir o modal e configurar PIX (copia e cola), QR PIX e link NuPay.
+                    Clique em um plano para abrir o modal e configurar o link de pagamento NuPay.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -502,7 +485,7 @@ const AdminPlansPage = () => {
                         <p className="text-base font-medium text-foreground">{plan.name}</p>
                         <Badge variant={plan.is_active ? 'default' : 'outline'}>{plan.is_active ? 'Ativo' : 'Inativo'}</Badge>
                         <Badge variant="outline">{getClassTypeLabel(plan.planClassType)}</Badge>
-                        <Badge variant="secondary">{plan.credits} crÃ©ditos</Badge>
+                        <Badge variant="secondary">{plan.credits} créditos</Badge>
                       </div>
                       {plan.description && <p className="text-sm text-muted-foreground">{plan.description}</p>}
                       <p className="text-sm text-foreground">
@@ -512,9 +495,6 @@ const AdminPlansPage = () => {
                       </p>
                       {plan.discountPct > 0 && <p className="text-xs text-primary">Desconto aproximado: {plan.discountPct}%</p>}
                       <div className="flex flex-wrap gap-2 pt-1">
-                        <Badge variant={plan.pix_code ? 'default' : 'outline'}>
-                          {plan.pix_code ? 'PIX configurado' : 'PIX pendente'}
-                        </Badge>
                         <Badge variant={plan.credit_payment_url ? 'default' : 'outline'}>
                           {plan.credit_payment_url ? 'NuPay configurado' : 'NuPay pendente'}
                         </Badge>
@@ -564,7 +544,7 @@ const AdminPlansPage = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>DescriÃ§Ã£o</Label>
+              <Label>Descrição</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Resumo do plano" className="bg-background" />
             </div>
 
@@ -592,7 +572,7 @@ const AdminPlansPage = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>CrÃ©ditos</Label>
+                <Label>Créditos</Label>
                 <Input type="number" min={1} value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="bg-background" />
               </div>
               <div className="space-y-1">
@@ -621,27 +601,12 @@ const AdminPlansPage = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>CÃ³digo PIX (copia e cola)</Label>
-              <Textarea
-                value={pixCode}
-                onChange={(e) => setPixCode(e.target.value)}
-                placeholder="Cole aqui o cÃ³digo PIX deste plano"
-                className="min-h-24 bg-background"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>URL do QR Code PIX (opcional)</Label>
-              <Input value={pixQrImageUrl} onChange={(e) => setPixQrImageUrl(e.target.value)} placeholder="https://..." className="bg-background" />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Link de pagamento NuPay (Nubank) (opcional)</Label>
+              <Label>Link de pagamento NuPay (Nubank) (obrigatório)</Label>
               <Input value={creditPaymentUrl} onChange={(e) => setCreditPaymentUrl(e.target.value)} placeholder="https://..." className="bg-background" />
             </div>
 
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="w-full font-display uppercase tracking-wider">
-              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alteraÃ§Ãµes' : 'Criar plano'}
+              {saveMutation.isPending ? 'Salvando...' : editingPlan ? 'Salvar alterações' : 'Criar plano'}
             </Button>
           </div>
         </DialogContent>
@@ -664,7 +629,7 @@ const AdminPlansPage = () => {
               <div className="rounded-lg border border-border/70 bg-background/50 p-3">
                 <p className="text-sm font-medium text-foreground">{paymentPlan.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {getClassTypeLabel(paymentPlan.planClassType)} â€¢ {paymentPlan.credits} crÃ©ditos â€¢ {formatMoney(paymentPlan.price_cents)}
+                  {getClassTypeLabel(paymentPlan.planClassType)} • {paymentPlan.credits} créditos • {formatMoney(paymentPlan.price_cents)}
                 </p>
               </div>
 
@@ -676,27 +641,7 @@ const AdminPlansPage = () => {
               )}
 
               <div className="space-y-1">
-                <Label>CÃ³digo PIX (copia e cola)</Label>
-                <Textarea
-                  value={paymentPixCode}
-                  onChange={(e) => setPaymentPixCode(e.target.value)}
-                  placeholder="Cole aqui o cÃ³digo PIX deste plano"
-                  className="min-h-24 bg-background"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>URL do QR Code PIX (opcional)</Label>
-                <Input
-                  value={paymentPixQrImageUrl}
-                  onChange={(e) => setPaymentPixQrImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="bg-background"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Link de pagamento NuPay (Nubank) (opcional)</Label>
+                <Label>Link de pagamento NuPay (Nubank) (obrigatório)</Label>
                 <Input
                   value={paymentCreditPaymentUrl}
                   onChange={(e) => setPaymentCreditPaymentUrl(e.target.value)}
@@ -710,7 +655,7 @@ const AdminPlansPage = () => {
                   Cancelar
                 </Button>
                 <Button className="w-full" onClick={() => savePaymentConfigMutation.mutate()} disabled={savePaymentConfigMutation.isPending}>
-                  {savePaymentConfigMutation.isPending ? 'Salvando...' : 'Salvar configuraÃ§Ã£o'}
+                  {savePaymentConfigMutation.isPending ? 'Salvando...' : 'Salvar configuração'}
                 </Button>
               </div>
             </div>

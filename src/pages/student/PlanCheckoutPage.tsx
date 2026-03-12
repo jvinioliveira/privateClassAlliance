@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CreditCard } from 'lucide-react';
+import { useRef, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +47,19 @@ const paymentTimelineSteps: PaymentTimelineStep[] = [
   { label: 'Aprovado' },
 ];
 
+const paymentCelebrationParticles = [
+  { x: '-96px', y: '-44px', color: '#22c55e', delayMs: 0 },
+  { x: '-80px', y: '6px', color: '#facc15', delayMs: 30 },
+  { x: '-70px', y: '54px', color: '#38bdf8', delayMs: 60 },
+  { x: '-18px', y: '-76px', color: '#fb7185', delayMs: 20 },
+  { x: '-8px', y: '72px', color: '#f59e0b', delayMs: 70 },
+  { x: '24px', y: '-82px', color: '#60a5fa', delayMs: 40 },
+  { x: '34px', y: '70px', color: '#a78bfa', delayMs: 90 },
+  { x: '74px', y: '-48px', color: '#34d399', delayMs: 55 },
+  { x: '86px', y: '8px', color: '#f97316', delayMs: 15 },
+  { x: '72px', y: '56px', color: '#e879f9', delayMs: 80 },
+];
+
 const PlanCheckoutPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -53,6 +67,8 @@ const PlanCheckoutPage = () => {
   const queryClient = useQueryClient();
   const [nowMs, setNowMs] = useState(Date.now());
   const [hasOpenedNuPay, setHasOpenedNuPay] = useState(false);
+  const [isCelebratingPayment, setIsCelebratingPayment] = useState(false);
+  const celebrationTimeoutRef = useRef<number | null>(null);
 
   const localStorageKey = useMemo(() => {
     if (!orderId || !user?.id) return null;
@@ -72,6 +88,14 @@ const PlanCheckoutPage = () => {
     const opened = window.localStorage.getItem(localStorageKey) === '1';
     setHasOpenedNuPay(opened);
   }, [localStorageKey]);
+
+  useEffect(() => {
+    return () => {
+      if (celebrationTimeoutRef.current !== null) {
+        window.clearTimeout(celebrationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['plan-order', orderId, user?.id],
@@ -158,7 +182,7 @@ const PlanCheckoutPage = () => {
       return 'Este pedido foi cancelado. Entre em contato com o professor para suporte.';
     }
     if (order.status === 'awaiting_approval') return 'Pagamento informado. O professor fará a validação manual.';
-    return 'Após o pagamento, o professor fará a confirmação manual da sua compra.';
+    return null;
   }, [order]);
 
   const canConfirmPayment = order?.status === 'pending_payment';
@@ -189,10 +213,25 @@ const PlanCheckoutPage = () => {
 
     registerAttemptMutation.mutate();
 
-    const popup = window.open(order.credit_payment_url, '_blank', 'noopener,noreferrer');
+    const popup = window.open(order.credit_payment_url, '_blank', 'noopener');
     if (!popup) {
-      window.location.href = order.credit_payment_url;
+      toast.error('Não foi possível abrir uma nova aba. Libere pop-ups e tente novamente.');
     }
+  };
+
+  const handleConfirmPayment = () => {
+    if (!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending) return;
+
+    setIsCelebratingPayment(true);
+    if (celebrationTimeoutRef.current !== null) {
+      window.clearTimeout(celebrationTimeoutRef.current);
+    }
+    celebrationTimeoutRef.current = window.setTimeout(() => {
+      setIsCelebratingPayment(false);
+      celebrationTimeoutRef.current = null;
+    }, 900);
+
+    markPaymentMutation.mutate();
   };
 
   if (isLoading) {
@@ -224,57 +263,52 @@ const PlanCheckoutPage = () => {
           <h1 className="font-display text-lg uppercase tracking-wider">Finalizar pagamento</h1>
           <Badge variant={getStatusVariant(order.status)}>{getPlanOrderStatusLabel(order.status)}</Badge>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Seus créditos serão liberados somente após a confirmação manual do pagamento pelo professor.
-        </p>
         <div className="mt-4 rounded-lg border border-border/70 bg-background/50 p-3">
           <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Etapas do pagamento</p>
-          <ol className="grid gap-2 sm:grid-cols-3">
+          <ol className="flex items-start">
             {paymentTimelineSteps.map((step, index) => {
               const isCompleted = index < paymentTimelineIndex;
               const isCurrent = index === paymentTimelineIndex;
+              const hasNextStep = index < paymentTimelineSteps.length - 1;
 
               return (
-                <li key={step.label} className="flex items-center gap-2">
+                <li key={step.label} className="relative flex flex-1 flex-col items-center gap-1 text-center">
+                  {hasNextStep && (
+                    <span className="absolute left-[calc(50%+0.75rem)] top-3 block h-0.5 w-[calc(100%-1.5rem)] rounded-full bg-border/70">
+                      <span
+                        className={`block h-full rounded-full bg-primary transition-[width] duration-700 ease-out ${
+                          isCompleted ? 'w-full' : 'w-0'
+                        }`}
+                        style={{ transitionDelay: `${index * 140}ms` }}
+                      />
+                    </span>
+                  )}
                   <span
-                    className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                    className={`payment-step-node relative z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
                       isCompleted
                         ? 'border-green-600 bg-green-600 text-white'
                         : isCurrent
-                        ? 'border-primary bg-primary/15 text-primary'
+                        ? 'payment-step-current border-primary bg-primary/15 text-primary'
                         : 'border-border bg-background text-muted-foreground'
                     }`}
                   >
                     {index + 1}
                   </span>
-                  <div>
-                    <p className={`text-xs ${isCurrent || isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {isCompleted ? 'Concluída' : isCurrent ? 'Etapa atual' : 'Pendente'}
-                    </p>
-                  </div>
+                  <p className={`text-[11px] leading-tight ${isCurrent || isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {step.label}
+                  </p>
                 </li>
               );
             })}
           </ol>
-          {order.status === 'cancelled' && (
-            <p className="mt-3 text-xs text-destructive">Pedido cancelado. Crie um novo pedido para continuar.</p>
-          )}
         </div>
         {remainingMs !== null && (
           <div className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Tempo para finalizar pedido</p>
-            <p className="text-lg font-semibold text-foreground">
-              {isFinalizationExpired ? 'Tempo encerrado' : formatCountdown(remainingMs)}
+            <p className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Tempo restante</span>
+              <span>{isFinalizationExpired ? 'Tempo encerrado' : formatCountdown(remainingMs)}</span>
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isFinalizationExpired
-                ? 'Crie um novo pedido para continuar a compra.'
-                : 'Se fechar a aba, você pode continuar depois na página de pedidos em andamento.'}
-            </p>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/plans/orders')}>
-              Ir para pedidos em andamento
-            </Button>
+            {isFinalizationExpired && <p className="mt-1 text-xs text-muted-foreground">Crie um novo pedido para continuar.</p>}
           </div>
         )}
       </div>
@@ -316,9 +350,7 @@ const PlanCheckoutPage = () => {
         </div>
 
         <div className="rounded-lg border border-[#820ad1]/20 bg-[#820ad1]/5 p-3">
-          <p className="text-sm text-foreground">
-            Toque no botão abaixo para abrir o checkout NuPay e pagar via PIX, cartão de crédito ou app Nubank.
-          </p>
+          <p className="text-sm text-foreground">Clique abaixo para pagar com NuPay.</p>
         </div>
 
         <Button
@@ -331,26 +363,47 @@ const PlanCheckoutPage = () => {
         </Button>
 
         {hasOpenedNuPay && (
-          <Button
-            disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
-            onClick={() => markPaymentMutation.mutate()}
-            className="w-full font-display uppercase tracking-wider"
-          >
-            {markPaymentMutation.isPending ? 'Confirmando...' : 'Já paguei'}
-          </Button>
+          <div className="relative">
+            <Button
+              disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
+              onClick={handleConfirmPayment}
+              className="w-full font-display uppercase tracking-wider"
+            >
+              {markPaymentMutation.isPending ? 'Confirmando...' : 'Já paguei'}
+            </Button>
+            {isCelebratingPayment && (
+              <span className="pointer-events-none absolute inset-0 z-20">
+                <span className="payment-celebration-ring" />
+                {paymentCelebrationParticles.map((particle, particleIndex) => (
+                  <span
+                    key={`payment-particle-${particleIndex}`}
+                    className="payment-confetti-piece"
+                    style={
+                      {
+                        '--confetti-x': particle.x,
+                        '--confetti-y': particle.y,
+                        '--confetti-color': particle.color,
+                        '--confetti-delay': `${particle.delayMs}ms`,
+                      } as CSSProperties
+                    }
+                  />
+                ))}
+              </span>
+            )}
+          </div>
         )}
 
-        {!hasOpenedNuPay && (
-          <p className="text-xs text-muted-foreground">
-            Após concluir no NuPay, volte para esta página para liberar o botão de confirmação do pagamento.
-          </p>
-        )}
+        {!hasOpenedNuPay && <p className="text-xs text-muted-foreground">Depois, volte e toque em "Já paguei".</p>}
       </div>
 
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-        <p className="text-sm font-medium text-foreground">{statusMessage}</p>
-        {order.admin_notes && <p className="mt-2 text-xs text-muted-foreground">Observação do professor: {order.admin_notes}</p>}
-      </div>
+      {(statusMessage || order.admin_notes) && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+          {statusMessage && <p className="text-sm font-medium text-foreground">{statusMessage}</p>}
+          {order.admin_notes && (
+            <p className={`${statusMessage ? 'mt-2 ' : ''}text-xs text-muted-foreground`}>Observação do professor: {order.admin_notes}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
