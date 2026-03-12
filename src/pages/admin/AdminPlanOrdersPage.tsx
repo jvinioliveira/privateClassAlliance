@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,6 +28,7 @@ type OrderWithNames = PlanOrder & {
   studentName: string;
   approverName: string | null;
 };
+type PaymentAttemptRow = Database['public']['Tables']['plan_order_payment_attempts']['Row'];
 
 const PAGE_SIZE = 5;
 
@@ -221,6 +223,23 @@ const AdminPlanOrdersPage = () => {
   const selectedOrderTerminal = selectedOrder?.status === 'approved' || selectedOrder?.status === 'cancelled';
   const isReviewingSelectedOrder =
     !!selectedOrder && reviewMutation.isPending && reviewMutation.variables?.orderId === selectedOrder.id;
+  const { data: selectedOrderAttempts = [], isLoading: loadingSelectedOrderAttempts } = useQuery<PaymentAttemptRow[]>({
+    queryKey: ['admin-plan-order-payment-attempts', selectedOrder?.id],
+    queryFn: async () => {
+      if (!selectedOrder) return [];
+
+      const { data, error } = await supabase
+        .from('plan_order_payment_attempts')
+        .select('*')
+        .eq('order_id', selectedOrder.id)
+        .order('attempted_at', { ascending: false })
+        .limit(30);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!selectedOrder && isDetailsOpen,
+  });
 
   return (
     <div className="space-y-4">
@@ -379,6 +398,30 @@ const AdminPlanOrdersPage = () => {
                   <p className="text-muted-foreground">Quantidade customizada</p>
                   <p className="font-medium text-foreground">{selectedOrder.custom_quantity ?? '-'}</p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-border/70 bg-background/50 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Auditoria de tentativas de pagamento</p>
+                {loadingSelectedOrderAttempts ? (
+                  <p className="mt-2 text-xs text-muted-foreground">Carregando tentativas...</p>
+                ) : selectedOrderAttempts.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">Nenhuma tentativa registrada até o momento.</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {selectedOrderAttempts.map((attempt) => (
+                      <div key={attempt.id} className="rounded-md border border-border/60 bg-background/70 p-2">
+                        <p className="text-xs font-medium text-foreground">
+                          {attempt.provider === 'nupay' ? 'NuPay' : attempt.provider} •{' '}
+                          {attempt.event_name === 'checkout_opened' ? 'Checkout aberto' : attempt.event_name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{formatDateTimeBR(attempt.attempted_at)}</p>
+                        {attempt.user_agent && (
+                          <p className="mt-1 line-clamp-2 break-all text-[10px] text-muted-foreground">{attempt.user_agent}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {selectedOrder.approverName && selectedOrder.approved_at && (

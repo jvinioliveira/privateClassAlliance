@@ -1,4 +1,4 @@
-export type PlanOrderType = 'fixed' | 'custom';
+﻿export type PlanOrderType = 'fixed' | 'custom';
 
 export type PlanOrderClassType = 'individual' | 'double';
 
@@ -77,7 +77,7 @@ export const getPaymentMethodLabel = (method: PlanOrderPaymentMethod) => {
     case 'pix':
       return 'PIX';
     case 'credit_link':
-      return 'Cartão (link)';
+      return 'NuPay (Nubank)';
     case 'manual_contact':
       return 'Contato manual';
     default:

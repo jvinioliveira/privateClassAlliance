@@ -425,6 +425,54 @@ export type Database = {
           },
         ]
       }
+      plan_order_payment_attempts: {
+        Row: {
+          attempted_at: string
+          created_at: string
+          event_name: string
+          id: string
+          order_id: string
+          provider: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          created_at?: string
+          event_name?: string
+          id?: string
+          order_id: string
+          provider?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          created_at?: string
+          event_name?: string
+          id?: string
+          order_id?: string
+          provider?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_order_payment_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "plan_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_order_payment_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

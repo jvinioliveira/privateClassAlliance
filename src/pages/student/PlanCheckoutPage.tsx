@@ -23,6 +23,10 @@ type PlanPaymentConfig = {
   credit_payment_url: string | null;
 };
 
+type PaymentTimelineStep = {
+  label: string;
+};
+
 const getStatusVariant = (status: PlanOrderStatus): 'default' | 'secondary' | 'destructive' | 'outline' => {
   if (status === 'approved') return 'default';
   if (status === 'awaiting_approval') return 'secondary';
@@ -35,6 +39,12 @@ const NubankIcon = () => (
     nu
   </span>
 );
+
+const paymentTimelineSteps: PaymentTimelineStep[] = [
+  { label: 'Aguardando pagamento' },
+  { label: 'Em análise' },
+  { label: 'Aprovado' },
+];
 
 const PlanCheckoutPage = () => {
   const { orderId } = useParams();
@@ -119,6 +129,25 @@ const PlanCheckoutPage = () => {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const registerAttemptMutation = useMutation({
+    mutationFn: async () => {
+      if (!orderId || !user?.id) return;
+
+      const { error } = await supabase.from('plan_order_payment_attempts').insert({
+        order_id: orderId,
+        user_id: user.id,
+        provider: 'nupay',
+        event_name: 'checkout_opened',
+        user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : null,
+      });
+
+      if (error) throw error;
+    },
+    onError: () => {
+      // Tentativa de auditoria não deve bloquear a experiência de pagamento.
+    },
+  });
+
   const statusMessage = useMemo(() => {
     if (!order) return null;
     if (order.status === 'approved') return 'Compra aprovada. Seus créditos já estão disponíveis.';
@@ -136,6 +165,16 @@ const PlanCheckoutPage = () => {
   const remainingMs = order ? getOrderRemainingMs(order, nowMs) : null;
   const isFinalizationExpired =
     !!order && remainingMs !== null && remainingMs <= 0 && isOrderFinalizableStatus(order.status);
+  const paymentTimelineIndex = useMemo(() => {
+    if (!order) return 0;
+
+    if (order.status === 'approved') return 2;
+    if (order.status === 'awaiting_approval') return 1;
+    if (order.status === 'cancelled') {
+      return order.payment_confirmed_at ? 1 : 0;
+    }
+    return 0;
+  }, [order]);
 
   const handleOpenNuPay = () => {
     if (!order?.credit_payment_url) {
@@ -147,6 +186,8 @@ const PlanCheckoutPage = () => {
       window.localStorage.setItem(localStorageKey, '1');
       setHasOpenedNuPay(true);
     }
+
+    registerAttemptMutation.mutate();
 
     const popup = window.open(order.credit_payment_url, '_blank', 'noopener,noreferrer');
     if (!popup) {
@@ -186,6 +227,40 @@ const PlanCheckoutPage = () => {
         <p className="mt-2 text-sm text-muted-foreground">
           Seus créditos serão liberados somente após a confirmação manual do pagamento pelo professor.
         </p>
+        <div className="mt-4 rounded-lg border border-border/70 bg-background/50 p-3">
+          <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Etapas do pagamento</p>
+          <ol className="grid gap-2 sm:grid-cols-3">
+            {paymentTimelineSteps.map((step, index) => {
+              const isCompleted = index < paymentTimelineIndex;
+              const isCurrent = index === paymentTimelineIndex;
+
+              return (
+                <li key={step.label} className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                      isCompleted
+                        ? 'border-green-600 bg-green-600 text-white'
+                        : isCurrent
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border bg-background text-muted-foreground'
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className={`text-xs ${isCurrent || isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {isCompleted ? 'Concluída' : isCurrent ? 'Etapa atual' : 'Pendente'}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          {order.status === 'cancelled' && (
+            <p className="mt-3 text-xs text-destructive">Pedido cancelado. Crie um novo pedido para continuar.</p>
+          )}
+        </div>
         {remainingMs !== null && (
           <div className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Tempo para finalizar pedido</p>
