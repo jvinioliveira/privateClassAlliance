@@ -20,7 +20,7 @@ const BottomNav = ({ items }: BottomNavProps) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/80 bg-card/95 pb-safe shadow-[0_-8px_28px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl">
       <div
-        className="mx-auto grid max-w-4xl items-center gap-1 px-2 py-2"
+        className="mx-auto grid max-w-4xl items-center gap-1 px-2 py-1"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
         {items.map((item) => {
@@ -33,7 +33,7 @@ const BottomNav = ({ items }: BottomNavProps) => {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  'group flex min-h-[56px] flex-col items-center justify-center rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
+                  'group flex min-h-[52px] flex-col items-center justify-center rounded-xl px-1 py-1 text-[10px] transition-colors sm:text-[11px]',
                   isActive
                     ? 'bg-primary/12 text-primary'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
