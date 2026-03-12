@@ -350,8 +350,8 @@ const PlanCheckoutPage = () => {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2">
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4 text-center">
+        <div className="flex items-center justify-center gap-2">
           <NubankIcon className="h-5 w-5 text-[#820ad1]" color="#820ad1" />
           <h2 className="nubank-brand-font text-sm tracking-tight">Pagamento via Nubank</h2>
         </div>
@@ -359,14 +359,14 @@ const PlanCheckoutPage = () => {
         <Button
           onClick={handleOpenNuPay}
           disabled={!order.credit_payment_url || isFinalizationExpired}
-          className="nubank-brand-font w-full bg-[#820ad1] tracking-tight text-white hover:bg-[#6f0bb8]"
+          className="nubank-brand-font mx-auto w-full max-w-sm bg-[#820ad1] tracking-tight text-white hover:bg-[#6f0bb8]"
         >
           <NubankIcon className="mr-2 h-4 w-4" color="#ffffff" />
           Pagar com NuPay
         </Button>
 
         {hasOpenedNuPay && (
-          <div className="relative">
+          <div className="relative mx-auto w-full max-w-sm">
             <Button
               disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
               onClick={handleConfirmPayment}
