@@ -190,6 +190,7 @@ const StudentHomePage = () => {
         .from('direct_messages')
         .select('*')
         .eq('recipient_id', user.id)
+        .is('read_at', null)
         .gte('created_at', chatHistoryCutoffIso)
         .order('created_at', { ascending: false })
         .limit(50);

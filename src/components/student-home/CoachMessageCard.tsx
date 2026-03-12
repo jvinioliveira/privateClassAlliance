@@ -1,4 +1,4 @@
-import { MessageSquareDot } from 'lucide-react';
+﻿import { MessageSquareDot } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import AnimatedCard from './AnimatedCard';
@@ -11,11 +11,10 @@ interface CoachMessageCardProps {
   onOpenInbox?: () => void;
 }
 
-const fallbackMessage =
-  'Mantenha a consistência nos treinos e aproveite seus horários disponíveis nesta semana.';
+const fallbackMessage = 'Nao foi possivel carregar a mensagem do professor.';
 
 const CoachMessageCard = ({ loading, hasError, message, onOpenInbox }: CoachMessageCardProps) => {
-  const visibleMessage = message?.content?.trim() || fallbackMessage;
+  const visibleMessage = message?.content?.trim() || '';
   const title = message?.title?.trim() || 'Mensagem do professor';
 
   return (
@@ -38,11 +37,15 @@ const CoachMessageCard = ({ loading, hasError, message, onOpenInbox }: CoachMess
           <div className="rounded-xl border border-border/80 bg-background/35 p-4 text-sm text-muted-foreground">
             {fallbackMessage}
           </div>
+        ) : !message ? (
+          <div className="rounded-xl border border-border/80 bg-background/35 p-4 text-sm text-muted-foreground">
+            Nao ha novas mensagens do professor.
+          </div>
         ) : (
           <div className="rounded-xl border border-border/80 bg-background/35 p-4">
             <p className="text-sm font-semibold text-foreground">{title}</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{visibleMessage}</p>
-            {message?.createdAtLabel && (
+            {message.createdAtLabel && (
               <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground/80">
                 Atualizado em {message.createdAtLabel}
               </p>
