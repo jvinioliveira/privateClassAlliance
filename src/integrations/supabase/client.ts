@@ -11,7 +11,7 @@ if (!SUPABASE_PUBLISHABLE_KEY) missingEnvVars.push('VITE_SUPABASE_PUBLISHABLE_KE
 
 if (missingEnvVars.length > 0) {
   throw new Error(
-    `Configuracao ausente: defina ${missingEnvVars.join(', ')} no ambiente de deploy.`,
+    `Configuração ausente: defina ${missingEnvVars.join(', ')} no ambiente de deploy.`,
   );
 }
 

@@ -11,7 +11,7 @@ interface CoachMessageCardProps {
   onOpenInbox?: () => void;
 }
 
-const fallbackMessage = 'Nao foi possivel carregar a mensagem do professor.';
+const fallbackMessage = 'Não foi possível carregar a mensagem do professor.';
 
 const CoachMessageCard = ({ loading, hasError, message, onOpenInbox }: CoachMessageCardProps) => {
   const visibleMessage = message?.content?.trim() || '';

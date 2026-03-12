@@ -4,7 +4,7 @@ import "./index.css";
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
-  throw new Error("Elemento #root nao encontrado.");
+  throw new Error("Elemento #root não encontrado.");
 }
 
 const missingEnvVars: string[] = [];
@@ -17,9 +17,9 @@ if (missingEnvVars.length > 0) {
   root.render(
     <main className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
       <section className="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="mb-2 text-lg font-semibold">Configuracao de producao incompleta</h1>
+        <h1 className="mb-2 text-lg font-semibold">Configuração de produção incompleta</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          O app nao pode iniciar porque faltam variaveis no ambiente de deploy.
+          O app não pode iniciar porque faltam variáveis no ambiente de deploy.
         </p>
         <p className="mt-4 text-sm">
           Defina em seu provedor (ex.: Vercel):{" "}

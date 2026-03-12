@@ -213,17 +213,25 @@ const PlanCheckoutPage = () => {
       return;
     }
 
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      toast.error('Não foi possível abrir uma nova aba. Libere pop-ups e tente novamente.');
+      return;
+    }
+
+    try {
+      popup.opener = null;
+      popup.location.href = order.credit_payment_url;
+    } catch {
+      popup.location.assign(order.credit_payment_url);
+    }
+
     if (localStorageKey && typeof window !== 'undefined') {
       window.localStorage.setItem(localStorageKey, '1');
       setHasOpenedNuPay(true);
     }
 
     registerAttemptMutation.mutate();
-
-    const popup = window.open(order.credit_payment_url, '_blank', 'noopener');
-    if (!popup) {
-      toast.error('Não foi possível abrir uma nova aba. Libere pop-ups e tente novamente.');
-    }
   };
 
   const handleConfirmPayment = () => {
