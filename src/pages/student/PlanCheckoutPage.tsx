@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CreditCard } from 'lucide-react';
 import { useRef, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,10 +34,18 @@ const getStatusVariant = (status: PlanOrderStatus): 'default' | 'secondary' | 'd
   return 'outline';
 };
 
-const NubankIcon = () => (
-  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#820ad1] text-[11px] font-bold leading-none text-white">
-    nu
-  </span>
+const NubankIcon = ({ className = 'h-5 w-5', color = 'currentColor' }: { className?: string; color?: string }) => (
+  <span
+    className={`inline-block ${className}`}
+    style={
+      {
+        backgroundColor: color,
+        WebkitMask: 'url(/nubank-icon.svg) center / contain no-repeat',
+        mask: 'url(/nubank-icon.svg) center / contain no-repeat',
+      } as CSSProperties
+    }
+    aria-hidden="true"
+  />
 );
 
 const paymentTimelineSteps: PaymentTimelineStep[] = [
@@ -345,20 +352,16 @@ const PlanCheckoutPage = () => {
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
-          <NubankIcon />
-          <h2 className="font-display text-sm uppercase tracking-wider">Pagamento via NuPay (Nubank)</h2>
-        </div>
-
-        <div className="rounded-lg border border-[#820ad1]/20 bg-[#820ad1]/5 p-3">
-          <p className="text-sm text-foreground">Clique abaixo para pagar com NuPay.</p>
+          <NubankIcon className="h-5 w-5 text-[#820ad1]" color="#820ad1" />
+          <h2 className="nubank-brand-font text-sm tracking-tight">Pagamento via Nubank</h2>
         </div>
 
         <Button
           onClick={handleOpenNuPay}
           disabled={!order.credit_payment_url || isFinalizationExpired}
-          className="w-full bg-[#820ad1] text-white hover:bg-[#6f0bb8]"
+          className="nubank-brand-font w-full bg-[#820ad1] tracking-tight text-white hover:bg-[#6f0bb8]"
         >
-          <CreditCard className="mr-2 h-4 w-4" />
+          <NubankIcon className="mr-2 h-4 w-4" color="#ffffff" />
           Pagar com NuPay
         </Button>
 

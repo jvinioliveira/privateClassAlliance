@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&family=Nunito+Sans:wght@600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -240,6 +240,11 @@
 
 .plan-equivalent-pulse {
   animation: planEquivalentPulse 2.3s ease-in-out infinite;
+}
+
+.nubank-brand-font {
+  font-family: 'Nu Sans', 'Nunito Sans', 'Inter', sans-serif;
+  font-weight: 700;
 }
 
 @keyframes paymentStepPulse {
