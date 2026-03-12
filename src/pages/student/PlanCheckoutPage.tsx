@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CreditCard, Copy, QrCode, Wallet } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,8 +20,6 @@ import {
 } from '@/lib/plan-orders';
 
 type PlanPaymentConfig = {
-  pix_code: string | null;
-  pix_qr_image_url: string | null;
   credit_payment_url: string | null;
 };
 
@@ -32,12 +30,24 @@ const getStatusVariant = (status: PlanOrderStatus): 'default' | 'secondary' | 'd
   return 'outline';
 };
 
+const NubankIcon = () => (
+  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-[#820ad1] text-[11px] font-bold leading-none text-white">
+    nu
+  </span>
+);
+
 const PlanCheckoutPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [nowMs, setNowMs] = useState(Date.now());
+  const [hasOpenedNuPay, setHasOpenedNuPay] = useState(false);
+
+  const localStorageKey = useMemo(() => {
+    if (!orderId || !user?.id) return null;
+    return `plan-order-nupay-opened:${user.id}:${orderId}`;
+  }, [orderId, user?.id]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -46,6 +56,12 @@ const PlanCheckoutPage = () => {
 
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!localStorageKey || typeof window === 'undefined') return;
+    const opened = window.localStorage.getItem(localStorageKey) === '1';
+    setHasOpenedNuPay(opened);
+  }, [localStorageKey]);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['plan-order', orderId, user?.id],
@@ -65,15 +81,11 @@ const PlanCheckoutPage = () => {
       const orderData = (data as PlanOrder | null) ?? null;
 
       if (!orderData || !orderData.plan_id) return orderData;
-
-      const needsPlanFallback =
-        (!orderData.pix_code && !orderData.pix_qr_image_url) || !orderData.credit_payment_url;
-
-      if (!needsPlanFallback) return orderData;
+      if (orderData.credit_payment_url) return orderData;
 
       const { data: planData, error: planError } = await supabase
         .from('lesson_plans')
-        .select('pix_code, pix_qr_image_url, credit_payment_url')
+        .select('credit_payment_url')
         .eq('id', orderData.plan_id)
         .maybeSingle();
 
@@ -83,8 +95,6 @@ const PlanCheckoutPage = () => {
 
       return {
         ...orderData,
-        pix_code: orderData.pix_code || paymentConfig.pix_code,
-        pix_qr_image_url: orderData.pix_qr_image_url || paymentConfig.pix_qr_image_url,
         credit_payment_url: orderData.credit_payment_url || paymentConfig.credit_payment_url,
       } as PlanOrder;
     },
@@ -92,11 +102,11 @@ const PlanCheckoutPage = () => {
   });
 
   const markPaymentMutation = useMutation({
-    mutationFn: async (method: 'pix' | 'credit_link') => {
+    mutationFn: async () => {
       if (!orderId) throw new Error('Pedido inválido.');
       const { error } = await supabase.rpc('mark_plan_order_payment', {
         p_order_id: orderId,
-        p_payment_method: method,
+        p_payment_method: 'credit_link',
       });
       if (error) throw error;
     },
@@ -127,16 +137,20 @@ const PlanCheckoutPage = () => {
   const isFinalizationExpired =
     !!order && remainingMs !== null && remainingMs <= 0 && isOrderFinalizableStatus(order.status);
 
-  const handleCopyPix = async () => {
-    if (!order?.pix_code) {
-      toast.error('Código PIX ainda não configurado pelo professor.');
+  const handleOpenNuPay = () => {
+    if (!order?.credit_payment_url) {
+      toast.error('O link de pagamento NuPay ainda não foi configurado para este plano.');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(order.pix_code);
-      toast.success('Código PIX copiado.');
-    } catch {
-      toast.error('Não foi possível copiar automaticamente. Selecione e copie manualmente.');
+
+    if (localStorageKey && typeof window !== 'undefined') {
+      window.localStorage.setItem(localStorageKey, '1');
+      setHasOpenedNuPay(true);
+    }
+
+    const popup = window.open(order.credit_payment_url, '_blank', 'noopener,noreferrer');
+    if (!popup) {
+      window.location.href = order.credit_payment_url;
     }
   };
 
@@ -166,7 +180,7 @@ const PlanCheckoutPage = () => {
     <div className="space-y-4 p-4">
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="font-display text-lg uppercase tracking-wider">Escolha a forma de pagamento</h1>
+          <h1 className="font-display text-lg uppercase tracking-wider">Finalizar pagamento</h1>
           <Badge variant={getStatusVariant(order.status)}>{getPlanOrderStatusLabel(order.status)}</Badge>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -222,63 +236,39 @@ const PlanCheckoutPage = () => {
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-primary" />
-          <h2 className="font-display text-sm uppercase tracking-wider">Pagamento via PIX</h2>
+          <NubankIcon />
+          <h2 className="font-display text-sm uppercase tracking-wider">Pagamento via NuPay (Nubank)</h2>
         </div>
 
-        <div className="space-y-2">
-          <div className="rounded-lg border border-border bg-background/60 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Código copia e cola</p>
-            <p className="mt-1 break-all text-xs text-foreground">{order.pix_code || 'Código PIX será disponibilizado em breve.'}</p>
-          </div>
-          <Button variant="outline" onClick={handleCopyPix} className="w-full">
-            <Copy className="mr-2 h-4 w-4" />
-            Copiar código PIX
-          </Button>
+        <div className="rounded-lg border border-[#820ad1]/20 bg-[#820ad1]/5 p-3">
+          <p className="text-sm text-foreground">
+            Toque no botão abaixo para abrir o checkout NuPay e pagar via PIX, cartão de crédito ou app Nubank.
+          </p>
         </div>
-
-        {order.pix_qr_image_url && (
-          <div className="rounded-lg border border-border bg-background/60 p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <QrCode className="h-4 w-4 text-primary" />
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">QR Code PIX</p>
-            </div>
-            <img src={order.pix_qr_image_url} alt="QR Code PIX" className="mx-auto max-h-60 w-auto rounded-md border border-border" />
-          </div>
-        )}
 
         <Button
-          disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
-          onClick={() => markPaymentMutation.mutate('pix')}
-          className="w-full font-display uppercase tracking-wider"
+          onClick={handleOpenNuPay}
+          disabled={!order.credit_payment_url || isFinalizationExpired}
+          className="w-full bg-[#820ad1] text-white hover:bg-[#6f0bb8]"
         >
-          {markPaymentMutation.isPending ? 'Confirmando...' : 'Já paguei via PIX'}
+          <CreditCard className="mr-2 h-4 w-4" />
+          Pagar com NuPay
         </Button>
-      </div>
 
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-primary" />
-          <h2 className="font-display text-sm uppercase tracking-wider">Pagamento com cartão</h2>
-        </div>
+        {hasOpenedNuPay && (
+          <Button
+            disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
+            onClick={() => markPaymentMutation.mutate()}
+            className="w-full font-display uppercase tracking-wider"
+          >
+            {markPaymentMutation.isPending ? 'Confirmando...' : 'Já paguei'}
+          </Button>
+        )}
 
-        {order.credit_payment_url ? (
-          <>
-            <Button asChild variant="outline" className="w-full">
-              <a href={order.credit_payment_url} target="_blank" rel="noreferrer">
-                Pagar com cartão
-              </a>
-            </Button>
-            <Button
-              disabled={!canConfirmPayment || isFinalizationExpired || markPaymentMutation.isPending}
-              onClick={() => markPaymentMutation.mutate('credit_link')}
-              className="w-full font-display uppercase tracking-wider"
-            >
-              {markPaymentMutation.isPending ? 'Confirmando...' : 'Já paguei com cartão'}
-            </Button>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">O link de cartão ainda não foi configurado para este plano.</p>
+        {!hasOpenedNuPay && (
+          <p className="text-xs text-muted-foreground">
+            Após concluir no NuPay, volte para esta página para liberar o botão de confirmação do pagamento.
+          </p>
         )}
       </div>
 
