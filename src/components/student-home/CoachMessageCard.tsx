@@ -39,7 +39,7 @@ const CoachMessageCard = ({ loading, hasError, message, onOpenInbox }: CoachMess
           </div>
         ) : !message ? (
           <div className="rounded-xl border border-border/80 bg-background/35 p-4 text-sm text-muted-foreground">
-            Nao ha novas mensagens do professor.
+            Não há novas mensagens do professor.
           </div>
         ) : (
           <div className="rounded-xl border border-border/80 bg-background/35 p-4">
