@@ -73,7 +73,7 @@ export default defineConfig(({ mode }) => ({
             return "vendor-embla";
           }
 
-          return "vendor-misc";
+          return undefined;
         },
       },
     },
