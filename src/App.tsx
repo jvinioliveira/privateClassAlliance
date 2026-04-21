@@ -28,6 +28,7 @@ const NotificationsHistoryPage = lazy(() => import("@/pages/student/Notification
 const ProfilePage = lazy(() => import("@/pages/student/ProfilePage"));
 const PlansPage = lazy(() => import("@/pages/student/PlansPage"));
 const PlanCheckoutPage = lazy(() => import("@/pages/student/PlanCheckoutPage"));
+const PlanCheckoutStatusPage = lazy(() => import("@/pages/student/PlanCheckoutStatusPage"));
 const PlanCustomContactPage = lazy(() => import("@/pages/student/PlanCustomContactPage"));
 const PlanOrdersPage = lazy(() => import("@/pages/student/PlanOrdersPage"));
 
@@ -106,6 +107,10 @@ const App = () => (
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/orders" element={<PlanOrdersPage />} />
+                <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
+                <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />
+                <Route path="/plans/checkout/pending" element={<PlanCheckoutStatusPage />} />
+                <Route path="/plans/checkout/error" element={<PlanCheckoutStatusPage />} />
                 <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
                 <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
               </Route>

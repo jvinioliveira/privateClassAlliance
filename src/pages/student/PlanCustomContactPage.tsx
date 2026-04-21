@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MessageCircle, PhoneCall } from 'lucide-react';
@@ -57,7 +57,7 @@ const PlanCustomContactPage = () => {
   const whatsappMessage = useMemo(() => {
     if (!order) return '';
     const quantity = order.custom_quantity ?? order.credits_amount;
-    return `Olá professor, quero finalizar a compra de um plano personalizado com ${quantity} aulas. Nome: ${studentName}. Tipo do plano: ${getClassTypeLabel(order.class_type)}. Pedido: ${order.id}.`;
+    return `Olá professor, preciso de ajuda para finalizar o pedido ${order.id} (${quantity} créditos). Nome: ${studentName}.`;
   }, [order, studentName]);
 
   const whatsappUrl = useMemo(() => {
@@ -68,7 +68,7 @@ const PlanCustomContactPage = () => {
 
   const handleOpenWhatsApp = () => {
     if (!whatsappUrl) {
-      toast.error('Configure VITE_PROFESSOR_WHATSAPP no ambiente para abrir o WhatsApp automaticamente.');
+      toast.error('Configure VITE_PROFESSOR_WHATSAPP para abrir o WhatsApp automaticamente.');
       return;
     }
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
@@ -111,11 +111,11 @@ const PlanCustomContactPage = () => {
     <div className="space-y-4 p-4">
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="font-display text-lg uppercase tracking-wider">Plano personalizado</h1>
+          <h1 className="font-display text-lg uppercase tracking-wider">Suporte para plano personalizado</h1>
           <Badge variant={getStatusVariant(order.status)}>{getPlanOrderStatusLabel(order.status)}</Badge>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          O valor deste plano será finalizado diretamente com o professor. Seus créditos só entram após aprovação manual.
+          O fluxo principal de pagamento é no Stripe Checkout. Use esta tela apenas se você precisar de atendimento manual.
         </p>
       </div>
 
@@ -132,14 +132,14 @@ const PlanCustomContactPage = () => {
           </div>
           <div className="rounded-md border border-border/70 bg-background/60 p-2">
             <p className="text-muted-foreground">Quantidade</p>
-            <p className="font-medium text-foreground">{quantity} aulas/créditos</p>
+            <p className="font-medium text-foreground">{quantity} créditos</p>
           </div>
           <div className="rounded-md border border-border/70 bg-background/60 p-2">
             <p className="text-muted-foreground">Validade prevista</p>
             <p className="font-medium text-foreground">{order.validity_days} dias</p>
           </div>
           <div className="rounded-md border border-border/70 bg-background/60 p-2">
-            <p className="text-muted-foreground">Valor de referência</p>
+            <p className="text-muted-foreground">Valor</p>
             <p className="font-medium text-foreground">{formatCurrencyBRL(order.price_amount_cents)}</p>
           </div>
           <div className="rounded-md border border-border/70 bg-background/60 p-2">
@@ -152,10 +152,10 @@ const PlanCustomContactPage = () => {
       <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
         <div className="flex items-center gap-2">
           <PhoneCall className="h-4 w-4 text-primary" />
-          <h2 className="font-display text-sm uppercase tracking-wider">Entre em contato para concluir sua compra</h2>
+          <h2 className="font-display text-sm uppercase tracking-wider">Precisa de ajuda?</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Após combinar o pagamento, o professor fará a aprovação manual e os créditos serão liberados na sua conta.
+          Em caso de dúvida no checkout, fale com o professor. O pedido segue rastreado no painel administrativo.
         </p>
         <div className="rounded-lg border border-primary/30 bg-background/80 p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensagem sugerida</p>
@@ -166,7 +166,10 @@ const PlanCustomContactPage = () => {
         </Button>
         <Button onClick={handleOpenWhatsApp} className="w-full font-display uppercase tracking-wider">
           <MessageCircle className="mr-2 h-4 w-4" />
-          Entrar em contato no WhatsApp
+          Falar no WhatsApp
+        </Button>
+        <Button onClick={() => navigate(`/plans/checkout/${order.id}`)} variant="secondary" className="w-full">
+          Voltar ao checkout Stripe
         </Button>
       </div>
     </div>

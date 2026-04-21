@@ -44,6 +44,12 @@ ALTER COLUMN remaining_credits SET NOT NULL;
 ALTER TABLE public.student_plan_selections
 DROP CONSTRAINT IF EXISTS student_plan_selections_remaining_credits_check;
 
+-- Normalize legacy data before enforcing the new bounds check.
+UPDATE public.student_plan_selections
+SET remaining_credits = LEAST(GREATEST(remaining_credits, 0), credits)
+WHERE remaining_credits < 0
+   OR remaining_credits > credits;
+
 ALTER TABLE public.student_plan_selections
 ADD CONSTRAINT student_plan_selections_remaining_credits_check
 CHECK (remaining_credits >= 0 AND remaining_credits <= credits);

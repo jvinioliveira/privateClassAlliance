@@ -338,10 +338,10 @@ const PlansPage = () => {
       return data;
     },
     onSuccess: (orderId) => {
-      toast.success('Solicitação personalizada criada.');
+      toast.success('Pedido personalizado criado. Siga para o checkout seguro.');
       queryClient.invalidateQueries({ queryKey: ['plan-orders'] });
       queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
-      navigate(`/plans/custom/${orderId}`);
+      navigate(`/plans/checkout/${orderId}`);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -547,13 +547,7 @@ const PlansPage = () => {
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <Button
                 variant="outline"
-                onClick={() =>
-                  navigate(
-                    latestOpenOrder.plan_type === 'fixed'
-                      ? `/plans/checkout/${latestOpenOrder.id}`
-                      : `/plans/custom/${latestOpenOrder.id}`,
-                  )
-                }
+                onClick={() => navigate(`/plans/checkout/${latestOpenOrder.id}`)}
               >
                 Continuar último pedido
               </Button>
@@ -929,7 +923,7 @@ const PlansPage = () => {
               disabled={!customPreview || createCustomOrderMutation.isPending}
               className="w-full font-display uppercase tracking-wider sm:w-auto"
             >
-              {createCustomOrderMutation.isPending ? 'Criando solicitação...' : 'Solicitar plano personalizado'}
+              {createCustomOrderMutation.isPending ? 'Criando pedido...' : 'Gerar checkout personalizado'}
             </Button>
           </div>
 

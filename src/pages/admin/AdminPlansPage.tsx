@@ -170,8 +170,9 @@ const AdminPlansPage = () => {
       const isPaymentUrlValid = /^https?:\/\//i.test(normalizedCreditPaymentUrl);
 
       if (!name.trim()) throw new Error('Informe o nome do plano.');
-      if (!normalizedCreditPaymentUrl) throw new Error('Informe o link de pagamento NuPay.');
-      if (!isPaymentUrlValid) throw new Error('Link NuPay deve começar com http:// ou https://.');
+      if (normalizedCreditPaymentUrl && !isPaymentUrlValid) {
+        throw new Error('Link legado deve começar com http:// ou https://.');
+      }
       if (!Number.isFinite(parsedPrice) || parsedPrice < 0) throw new Error('Valor inválido.');
       if (!Number.isInteger(parsedCredits) || parsedCredits <= 0) {
         throw new Error('Créditos devem ser inteiros e maiores que zero.');
@@ -188,7 +189,7 @@ const AdminPlansPage = () => {
         is_active: isActive,
         pix_code: null,
         pix_qr_image_url: null,
-        credit_payment_url: normalizedCreditPaymentUrl,
+        credit_payment_url: normalizedCreditPaymentUrl || null,
       };
 
       const duplicateQuery = supabase
@@ -241,13 +242,14 @@ const AdminPlansPage = () => {
       const normalizedCreditPaymentUrl = paymentCreditPaymentUrl.trim();
       const isCreditUrlValid = /^https?:\/\//i.test(normalizedCreditPaymentUrl);
 
-      if (!normalizedCreditPaymentUrl) throw new Error('Informe o link de pagamento NuPay.');
-      if (!isCreditUrlValid) throw new Error('Link NuPay deve começar com http:// ou https://.');
+      if (normalizedCreditPaymentUrl && !isCreditUrlValid) {
+        throw new Error('Link legado deve começar com http:// ou https://.');
+      }
 
       const payload = {
         pix_code: null,
         pix_qr_image_url: null,
-        credit_payment_url: normalizedCreditPaymentUrl,
+        credit_payment_url: normalizedCreditPaymentUrl || null,
       };
 
       const { error } = await supabase.from('lesson_plans').update(payload).eq('id', paymentPlan.id);
@@ -601,7 +603,7 @@ const AdminPlansPage = () => {
             </div>
 
             <div className="space-y-1">
-              <Label>Link de pagamento NuPay (Nubank) (obrigatório)</Label>
+              <Label>Link legado de pagamento (opcional)</Label>
               <Input value={creditPaymentUrl} onChange={(e) => setCreditPaymentUrl(e.target.value)} placeholder="https://..." className="bg-background" />
             </div>
 
@@ -641,7 +643,7 @@ const AdminPlansPage = () => {
               )}
 
               <div className="space-y-1">
-                <Label>Link de pagamento NuPay (Nubank) (obrigatório)</Label>
+                <Label>Link legado de pagamento (opcional)</Label>
                 <Input
                   value={paymentCreditPaymentUrl}
                   onChange={(e) => setPaymentCreditPaymentUrl(e.target.value)}

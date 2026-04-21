@@ -20,6 +20,63 @@ ON public.direct_conversations (student_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_direct_conversations_admin_status
 ON public.direct_conversations (admin_id, status, updated_at DESC);
 
+-- Ensure uniqueness for (student_id, admin_id) on pre-existing databases.
+-- 1) Repoint messages from duplicate conversations to the kept conversation.
+-- 2) Remove duplicate conversation rows.
+WITH ranked AS (
+  SELECT
+    dc.id,
+    dc.student_id,
+    dc.admin_id,
+    FIRST_VALUE(dc.id) OVER (
+      PARTITION BY dc.student_id, dc.admin_id
+      ORDER BY dc.updated_at DESC, dc.created_at DESC, dc.id DESC
+    ) AS keep_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY dc.student_id, dc.admin_id
+      ORDER BY dc.updated_at DESC, dc.created_at DESC, dc.id DESC
+    ) AS rn
+  FROM public.direct_conversations dc
+),
+dupes AS (
+  SELECT id AS duplicate_id, keep_id
+  FROM ranked
+  WHERE rn > 1
+)
+UPDATE public.direct_messages dm
+SET conversation_id = d.keep_id
+FROM dupes d
+WHERE dm.conversation_id = d.duplicate_id;
+
+WITH ranked AS (
+  SELECT
+    dc.id,
+    ROW_NUMBER() OVER (
+      PARTITION BY dc.student_id, dc.admin_id
+      ORDER BY dc.updated_at DESC, dc.created_at DESC, dc.id DESC
+    ) AS rn
+  FROM public.direct_conversations dc
+)
+DELETE FROM public.direct_conversations dc
+USING ranked r
+WHERE dc.id = r.id
+  AND r.rn > 1;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'direct_conversations_student_id_admin_id_key'
+      AND conrelid = 'public.direct_conversations'::regclass
+  ) THEN
+    ALTER TABLE public.direct_conversations
+    ADD CONSTRAINT direct_conversations_student_id_admin_id_key
+    UNIQUE (student_id, admin_id);
+  END IF;
+END;
+$$;
+
 ALTER TABLE public.direct_conversations ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view own direct conversations" ON public.direct_conversations;

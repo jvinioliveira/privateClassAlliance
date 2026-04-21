@@ -74,6 +74,12 @@ const getStatusBadgeClassName = (status: PlanOrderStatus) => {
   return '';
 };
 
+const getAttemptProviderLabel = (provider: string) => {
+  if (provider === 'nupay') return 'NuPay';
+  if (provider === 'stripe') return 'Stripe';
+  return provider;
+};
+
 const AdminPlanOrdersPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -390,6 +396,18 @@ const AdminPlanOrdersPage = () => {
                   <p className="text-muted-foreground">Forma de pagamento</p>
                   <p className="font-medium text-foreground">{getPaymentMethodLabel(selectedOrder.payment_method)}</p>
                 </div>
+                {selectedOrder.stripe_payment_status && (
+                  <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                    <p className="text-muted-foreground">Status Stripe</p>
+                    <p className="font-medium uppercase text-foreground">{selectedOrder.stripe_payment_status}</p>
+                  </div>
+                )}
+                {selectedOrder.stripe_checkout_session_id && (
+                  <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                    <p className="text-muted-foreground">Checkout Session</p>
+                    <p className="truncate font-medium text-foreground">{selectedOrder.stripe_checkout_session_id}</p>
+                  </div>
+                )}
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
                   <p className="text-muted-foreground">Criado em</p>
                   <p className="font-medium text-foreground">{formatDateTimeBR(selectedOrder.created_at)}</p>
@@ -411,8 +429,12 @@ const AdminPlanOrdersPage = () => {
                     {selectedOrderAttempts.map((attempt) => (
                       <div key={attempt.id} className="rounded-md border border-border/60 bg-background/70 p-2">
                         <p className="text-xs font-medium text-foreground">
-                          {attempt.provider === 'nupay' ? 'NuPay' : attempt.provider} •{' '}
-                          {attempt.event_name === 'checkout_opened' ? 'Checkout aberto' : attempt.event_name}
+                          {getAttemptProviderLabel(attempt.provider)} •{' '}
+                          {attempt.event_name === 'checkout_opened'
+                            ? 'Checkout aberto'
+                            : attempt.event_name === 'checkout_redirected'
+                            ? 'Checkout redirecionado'
+                            : attempt.event_name}
                         </p>
                         <p className="text-[11px] text-muted-foreground">{formatDateTimeBR(attempt.attempted_at)}</p>
                         {attempt.user_agent && (

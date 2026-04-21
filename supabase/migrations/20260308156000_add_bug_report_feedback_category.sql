@@ -3,6 +3,12 @@
 ALTER TABLE public.student_feedback_submissions
 DROP CONSTRAINT IF EXISTS student_feedback_submissions_category_check;
 
+-- Normalize legacy categories before applying the strict check.
+UPDATE public.student_feedback_submissions
+SET category = 'other'
+WHERE category IS NULL
+   OR category NOT IN ('complaint', 'compliment', 'suggestion', 'other', 'bug');
+
 ALTER TABLE public.student_feedback_submissions
 ADD CONSTRAINT student_feedback_submissions_category_check
 CHECK (category IN ('complaint', 'compliment', 'suggestion', 'other', 'bug'));

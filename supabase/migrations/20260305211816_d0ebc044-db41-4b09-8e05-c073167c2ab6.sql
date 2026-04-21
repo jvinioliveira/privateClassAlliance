@@ -2,7 +2,7 @@
 -- ============================================
 -- 1. PROFILES TABLE
 -- ============================================
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin')),
@@ -11,14 +11,17 @@ CREATE TABLE public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
 CREATE POLICY "Admins can view all profiles"
   ON public.profiles FOR SELECT
   USING (
@@ -46,6 +49,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -67,7 +71,7 @@ $$;
 -- ============================================
 -- 2. AVAILABILITY_SLOTS TABLE
 -- ============================================
-CREATE TABLE public.availability_slots (
+CREATE TABLE IF NOT EXISTS public.availability_slots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ NOT NULL,
@@ -78,15 +82,17 @@ CREATE TABLE public.availability_slots (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_slots_start_time ON public.availability_slots(start_time);
-CREATE INDEX idx_slots_status ON public.availability_slots(status);
+CREATE INDEX IF NOT EXISTS idx_slots_start_time ON public.availability_slots(start_time);
+CREATE INDEX IF NOT EXISTS idx_slots_status ON public.availability_slots(status);
 
 ALTER TABLE public.availability_slots ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view available slots" ON public.availability_slots;
 CREATE POLICY "Students can view available slots"
   ON public.availability_slots FOR SELECT
   USING (status = 'available' OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage slots" ON public.availability_slots;
 CREATE POLICY "Admins can manage slots"
   ON public.availability_slots FOR ALL
   USING (public.is_admin(auth.uid()));
@@ -94,7 +100,7 @@ CREATE POLICY "Admins can manage slots"
 -- ============================================
 -- 3. BOOKINGS TABLE
 -- ============================================
-CREATE TABLE public.bookings (
+CREATE TABLE IF NOT EXISTS public.bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slot_id UUID NOT NULL REFERENCES public.availability_slots(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -109,16 +115,18 @@ CREATE TABLE public.bookings (
   UNIQUE(slot_id, student_id)
 );
 
-CREATE INDEX idx_bookings_slot_id ON public.bookings(slot_id);
-CREATE INDEX idx_bookings_student_id ON public.bookings(student_id);
-CREATE INDEX idx_bookings_status ON public.bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_slot_id ON public.bookings(slot_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_student_id ON public.bookings(student_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view own bookings" ON public.bookings;
 CREATE POLICY "Students can view own bookings"
   ON public.bookings FOR SELECT
   USING (auth.uid() = student_id);
 
+DROP POLICY IF EXISTS "Admins can manage all bookings" ON public.bookings;
 CREATE POLICY "Admins can manage all bookings"
   ON public.bookings FOR ALL
   USING (public.is_admin(auth.uid()));
@@ -126,7 +134,7 @@ CREATE POLICY "Admins can manage all bookings"
 -- ============================================
 -- 4. STUDENT_MONTH_CREDITS TABLE
 -- ============================================
-CREATE TABLE public.student_month_credits (
+CREATE TABLE IF NOT EXISTS public.student_month_credits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   month_ref DATE NOT NULL,
@@ -138,10 +146,12 @@ CREATE TABLE public.student_month_credits (
 
 ALTER TABLE public.student_month_credits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view own credits" ON public.student_month_credits;
 CREATE POLICY "Students can view own credits"
   ON public.student_month_credits FOR SELECT
   USING (auth.uid() = student_id);
 
+DROP POLICY IF EXISTS "Admins can manage all credits" ON public.student_month_credits;
 CREATE POLICY "Admins can manage all credits"
   ON public.student_month_credits FOR ALL
   USING (public.is_admin(auth.uid()));
@@ -149,7 +159,7 @@ CREATE POLICY "Admins can manage all credits"
 -- ============================================
 -- 5. WAITLIST TABLE
 -- ============================================
-CREATE TABLE public.waitlist (
+CREATE TABLE IF NOT EXISTS public.waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slot_id UUID NOT NULL REFERENCES public.availability_slots(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -161,15 +171,17 @@ CREATE TABLE public.waitlist (
   UNIQUE(slot_id, student_id)
 );
 
-CREATE INDEX idx_waitlist_slot_status ON public.waitlist(slot_id, status);
-CREATE INDEX idx_waitlist_slot_position ON public.waitlist(slot_id, position);
+CREATE INDEX IF NOT EXISTS idx_waitlist_slot_status ON public.waitlist(slot_id, status);
+CREATE INDEX IF NOT EXISTS idx_waitlist_slot_position ON public.waitlist(slot_id, position);
 
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view own waitlist" ON public.waitlist;
 CREATE POLICY "Students can view own waitlist"
   ON public.waitlist FOR SELECT
   USING (auth.uid() = student_id);
 
+DROP POLICY IF EXISTS "Admins can manage all waitlist" ON public.waitlist;
 CREATE POLICY "Admins can manage all waitlist"
   ON public.waitlist FOR ALL
   USING (public.is_admin(auth.uid()));
@@ -177,7 +189,7 @@ CREATE POLICY "Admins can manage all waitlist"
 -- ============================================
 -- 6. NOTIFICATIONS TABLE
 -- ============================================
-CREATE TABLE public.notifications (
+CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   type TEXT,
@@ -189,10 +201,12 @@ CREATE TABLE public.notifications (
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications"
   ON public.notifications FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications"
   ON public.notifications FOR UPDATE
   USING (auth.uid() = user_id);
@@ -286,6 +300,8 @@ $$;
 -- ============================================
 -- 9. RPC: cancel_booking
 -- ============================================
+DROP FUNCTION IF EXISTS public.cancel_booking(UUID);
+
 CREATE OR REPLACE FUNCTION public.cancel_booking(p_booking_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -710,10 +726,12 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS update_bookings_updated_at ON public.bookings;
 CREATE TRIGGER update_bookings_updated_at
   BEFORE UPDATE ON public.bookings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_student_month_credits_updated_at ON public.student_month_credits;
 CREATE TRIGGER update_student_month_credits_updated_at
   BEFORE UPDATE ON public.student_month_credits
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

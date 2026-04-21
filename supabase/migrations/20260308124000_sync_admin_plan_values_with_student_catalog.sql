@@ -1,4 +1,4 @@
-﻿-- Sync default lesson plan values to match student-facing catalog
+-- Sync default lesson plan values to match student-facing catalog
 
 WITH desired_plans AS (
   SELECT *

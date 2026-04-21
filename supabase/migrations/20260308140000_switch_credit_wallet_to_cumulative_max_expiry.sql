@@ -7,6 +7,12 @@
 ALTER TABLE public.student_plan_selections
 DROP CONSTRAINT IF EXISTS student_plan_selections_remaining_credits_check;
 
+-- Normalize legacy values before enforcing non-negative remaining credits.
+UPDATE public.student_plan_selections
+SET remaining_credits = GREATEST(COALESCE(remaining_credits, 0), 0)
+WHERE remaining_credits IS NULL
+   OR remaining_credits < 0;
+
 ALTER TABLE public.student_plan_selections
 ADD CONSTRAINT student_plan_selections_remaining_credits_check
 CHECK (remaining_credits >= 0);

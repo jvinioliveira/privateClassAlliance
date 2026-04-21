@@ -136,11 +136,9 @@ const PlanOrdersPage = () => {
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Button
                     className="w-full sm:w-auto"
-                    onClick={() =>
-                      navigate(order.plan_type === 'fixed' ? `/plans/checkout/${order.id}` : `/plans/custom/${order.id}`)
-                    }
+                    onClick={() => navigate(`/plans/checkout/${order.id}`)}
                   >
-                    Continuar pedido
+                    Retomar checkout
                   </Button>
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate('/plans')}>
                     Fazer novo pedido

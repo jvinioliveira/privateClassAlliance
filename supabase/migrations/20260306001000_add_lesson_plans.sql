@@ -2,7 +2,7 @@
 -- Lesson plans and student plan selections
 -- ============================================
 
-CREATE TABLE public.lesson_plans (
+CREATE TABLE IF NOT EXISTS public.lesson_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
@@ -16,16 +16,18 @@ CREATE TABLE public.lesson_plans (
 
 ALTER TABLE public.lesson_plans ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can view active plans" ON public.lesson_plans;
 CREATE POLICY "Authenticated users can view active plans"
   ON public.lesson_plans FOR SELECT
   USING (is_active = true OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage lesson plans" ON public.lesson_plans;
 CREATE POLICY "Admins can manage lesson plans"
   ON public.lesson_plans FOR ALL
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
-CREATE TABLE public.student_plan_selections (
+CREATE TABLE IF NOT EXISTS public.student_plan_selections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   plan_id UUID NOT NULL REFERENCES public.lesson_plans(id) ON DELETE RESTRICT,
@@ -38,23 +40,27 @@ CREATE TABLE public.student_plan_selections (
   UNIQUE(student_id, month_ref)
 );
 
-CREATE INDEX idx_student_plan_selections_student_month
+CREATE INDEX IF NOT EXISTS idx_student_plan_selections_student_month
   ON public.student_plan_selections(student_id, month_ref);
 
 ALTER TABLE public.student_plan_selections ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view own plan selections" ON public.student_plan_selections;
 CREATE POLICY "Students can view own plan selections"
   ON public.student_plan_selections FOR SELECT
   USING (auth.uid() = student_id);
 
+DROP POLICY IF EXISTS "Admins can view all plan selections" ON public.student_plan_selections;
 CREATE POLICY "Admins can view all plan selections"
   ON public.student_plan_selections FOR SELECT
   USING (public.is_admin(auth.uid()));
 
+DROP TRIGGER IF EXISTS update_lesson_plans_updated_at ON public.lesson_plans;
 CREATE TRIGGER update_lesson_plans_updated_at
   BEFORE UPDATE ON public.lesson_plans
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_student_plan_selections_updated_at ON public.student_plan_selections;
 CREATE TRIGGER update_student_plan_selections_updated_at
   BEFORE UPDATE ON public.student_plan_selections
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

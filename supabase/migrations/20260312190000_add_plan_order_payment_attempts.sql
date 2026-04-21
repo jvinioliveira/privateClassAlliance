@@ -1,4 +1,4 @@
-﻿-- Auditoria de tentativas de pagamento em checkout (NuPay)
+-- Auditoria de tentativas de pagamento em checkout (NuPay)
 
 CREATE TABLE IF NOT EXISTS public.plan_order_payment_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
