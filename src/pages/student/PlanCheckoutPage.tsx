@@ -68,8 +68,24 @@ const PlanCheckoutPage = () => {
     mutationFn: async () => {
       if (!orderId) throw new Error('Pedido inválido.');
 
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw new Error('Não foi possível validar sua sessão. Faça login novamente.');
+      }
+
+      if (!session?.access_token) {
+        throw new Error('Sessão expirada. Faça login novamente para continuar.');
+      }
+
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout-session', {
         body: { orderId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) {
