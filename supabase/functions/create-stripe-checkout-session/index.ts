@@ -27,6 +27,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
 }
 
 const SITE_URL = (Deno.env.get('SITE_URL') || 'http://localhost:8080').replace(/\/$/, '');
+const STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES = ['card'] as const;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -122,7 +123,7 @@ const createStripeSession = async ({
     success_url: successUrl,
     cancel_url: cancelUrl,
     customer_email: userEmail,
-    payment_method_types: ['card', 'pix'],
+    payment_method_types: [...STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES],
     allow_promotion_codes: true,
     expires_at: Math.floor(Date.now() / 1000) + 60 * 30,
     line_items: [
