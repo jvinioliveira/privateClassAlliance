@@ -32,16 +32,27 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
 const getUserFromAuthHeader = async (authHeader: string | null) => {
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw new Error('Missing Authorization header');
+  if (!authHeader) {
+    throw new UnauthorizedError('Missing Authorization header');
   }
 
-  const token = authHeader.slice('Bearer '.length);
+  const [scheme, token] = authHeader.split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    throw new UnauthorizedError('Invalid Authorization header format');
+  }
+
   const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data.user) {
-    throw new Error('Unauthorized');
+    throw new UnauthorizedError('Unauthorized');
   }
 
   return data.user;
@@ -232,7 +243,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error';
-    const status = message === 'Unauthorized' || message === 'Missing Authorization header' ? 401 : 500;
+    const status = error instanceof UnauthorizedError ? 401 : 500;
     return jsonResponse(status, { error: message });
   }
 });
