@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ArrowLeft, Pencil, Plus } from 'lucide-react';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 type LessonPlanRow = Database['public']['Tables']['lesson_plans']['Row'];
 type PlanClassType = 'individual' | 'double';
@@ -175,7 +176,7 @@ const AdminPlansPage = () => {
         toast.error('Plano duplicado para a mesma categoria, créditos e valor.');
         return;
       }
-      toast.error(err.message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível salvar o plano.'));
     },
   });
 
@@ -188,7 +189,7 @@ const AdminPlansPage = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-lesson-plans'] });
       queryClient.invalidateQueries({ queryKey: ['student-lesson-plans'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível atualizar o status do plano.')),
   });
 
   const plansWithMetrics = useMemo<PlanWithMetrics[]>(() => {

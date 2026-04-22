@@ -34,6 +34,7 @@ import {
   type StudentCreditPurchase,
   type StudentCreditSummary,
 } from '@/lib/student-credits';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import { toast } from 'sonner';
 
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
@@ -123,8 +124,7 @@ const splitFullName = (fullName: string) => {
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
+  return getFriendlyErrorMessage(error, fallback);
 };
 
 const formatBookingDateTime = (isoDate: string) => {
@@ -265,7 +265,7 @@ const ProfilePage = () => {
       queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
     },
     onError: (err: unknown) => {
-      toast.error(getErrorMessage(err, 'Erro ao cancelar agendamento'));
+      toast.error(getErrorMessage(err, 'Não foi possível cancelar o agendamento.'));
     },
   });
 
@@ -293,7 +293,7 @@ const ProfilePage = () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (err: unknown) => {
-      toast.error(getErrorMessage(err, 'Erro ao enviar feedback'));
+      toast.error(getErrorMessage(err, 'Não foi possível enviar o feedback.'));
     },
   });
 
@@ -421,7 +421,7 @@ const ProfilePage = () => {
         }
 	      toast.success('Perfil atualizado');
 	    } catch (err: unknown) {
-	      toast.error(getErrorMessage(err, 'Erro ao salvar perfil'));
+	      toast.error(getErrorMessage(err, 'Não foi possível salvar o perfil.'));
     } finally {
       setSavingProfile(false);
     }
@@ -446,7 +446,7 @@ const ProfilePage = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Erro ao atualizar senha'));
+      toast.error(getErrorMessage(err, 'Não foi possível atualizar a senha.'));
     } finally {
       setSavingPassword(false);
     }
@@ -457,7 +457,7 @@ const ProfilePage = () => {
     try {
       await signOut();
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Erro ao sair da conta'));
+      toast.error(getErrorMessage(err, 'Não foi possível sair da conta.'));
     } finally {
       setSigningOut(false);
     }
@@ -883,7 +883,7 @@ const ProfilePage = () => {
               value={feedbackMessage}
               onChange={(event) => setFeedbackMessage(event.target.value)}
               className="min-h-32 border-border bg-background"
-              placeholder="Descreva sua sugestão, elogio ou reclamação com detalhes. Se for relatar um erro, informe o que você estava fazendo, o que aconteceu e, se possível, o modelo do seu dispositivo e navegador."
+              placeholder="Descreva sua mensagem de forma objetiva para que possamos ajudar."
               maxLength={2000}
             />
           </div>

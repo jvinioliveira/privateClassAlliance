@@ -1,4 +1,4 @@
-import { Link, Navigate, useLocation } from 'react-router-dom';
+﻿import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +26,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-5">
           <h1 className="font-display text-lg uppercase tracking-wider">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Faça login para acessar esta área com segurança.
+            Faça login para continuar.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button asChild className="w-full sm:w-auto">

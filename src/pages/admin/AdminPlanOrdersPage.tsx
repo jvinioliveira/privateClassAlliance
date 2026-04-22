@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import {
   formatCurrencyBRL,
   formatDateTimeBR,
@@ -192,7 +193,7 @@ const AdminPlanOrdersPage = () => {
       setIsDetailsOpen(false);
       setSelectedOrder(null);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível atualizar o pedido.')),
   });
 
   const handleDecision = (orderId: string) => {
@@ -274,7 +275,7 @@ const AdminPlanOrdersPage = () => {
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-destructive/50 bg-card p-4 text-sm text-destructive">
-          NÃ£o foi possÃ­vel carregar os pedidos.
+          Não foi possível carregar os pedidos.
         </div>
       ) : paginatedOrders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
@@ -337,7 +338,7 @@ const AdminPlanOrdersPage = () => {
           onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
           disabled={currentPage >= totalPages - 1}
         >
-          PrÃ³xima
+          Próxima
         </Button>
       </div>
 
@@ -369,7 +370,7 @@ const AdminPlanOrdersPage = () => {
                   <p className="font-medium text-foreground">{getClassTypeLabel(selectedOrder.class_type)}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                  <p className="text-muted-foreground">CrÃ©ditos</p>
+                  <p className="text-muted-foreground">Créditos</p>
                   <p className="font-medium text-foreground">{selectedOrder.credits_amount}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
@@ -385,7 +386,7 @@ const AdminPlanOrdersPage = () => {
                   <p className="font-medium text-foreground">{getPaymentMethodLabel(selectedOrder.payment_method)}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                  <p className="text-muted-foreground">CrÃ©dito concedido em</p>
+                  <p className="text-muted-foreground">Crédito concedido em</p>
                   <p className="font-medium text-foreground">
                     {selectedOrder.credits_granted_at ? formatDateTimeBR(selectedOrder.credits_granted_at) : '-'}
                   </p>
@@ -398,7 +399,7 @@ const AdminPlanOrdersPage = () => {
                 )}
                 {selectedOrder.requires_refund_review && (
                   <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
-                    <p className="text-muted-foreground">RevisÃ£o de estorno</p>
+                    <p className="text-muted-foreground">Revisão de estorno</p>
                     <p className="font-medium text-amber-700">{selectedOrder.refund_review_reason || 'Pendente'}</p>
                   </div>
                 )}
@@ -423,7 +424,7 @@ const AdminPlanOrdersPage = () => {
                 {loadingSelectedOrderAttempts ? (
                   <p className="mt-2 text-xs text-muted-foreground">Carregando tentativas...</p>
                 ) : selectedOrderAttempts.length === 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Nenhuma tentativa registrada atÃ© o momento.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Nenhuma tentativa registrada até o momento.</p>
                 ) : (
                   <div className="mt-2 space-y-2">
                     {selectedOrderAttempts.map((attempt) => (
@@ -463,7 +464,7 @@ const AdminPlanOrdersPage = () => {
                     {isReviewingSelectedOrder ? 'Cancelando...' : 'Cancelar pedido'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    CrÃ©ditos sÃ£o liberados automaticamente pelo webhook da Stripe apÃ³s pagamento confirmado.
+                    Créditos são liberados automaticamente após confirmação do pagamento.
                   </p>
                 </div>
               )}
@@ -476,6 +477,8 @@ const AdminPlanOrdersPage = () => {
 };
 
 export default AdminPlanOrdersPage;
+
+
 
 
 

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
 import { SESSION_EXPIRED_REASON_KEY } from '@/lib/session-state';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -57,7 +58,7 @@ const LoginPage = () => {
     const state = location.state as { reason?: string } | null;
     if (state?.reason !== 'auth_required' || hasShownAuthRequiredToast.current) return;
     hasShownAuthRequiredToast.current = true;
-    toast.info('Faça login para continuar essa ação.');
+    toast.info('Faça login para continuar.');
   }, [location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,8 +68,7 @@ const LoginPage = () => {
       await signIn(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao entrar';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível entrar. Tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -80,8 +80,7 @@ const LoginPage = () => {
       await signInWithGoogle();
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao entrar com Google';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível entrar com Google. Tente novamente.'));
     } finally {
       setLoading(false);
     }

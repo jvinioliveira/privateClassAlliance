@@ -68,7 +68,7 @@ const PlanCustomContactPage = () => {
 
   const handleOpenWhatsApp = () => {
     if (!whatsappUrl) {
-      toast.error('Configure VITE_PROFESSOR_WHATSAPP para abrir o WhatsApp automaticamente.');
+      toast.error('Canal de atendimento indisponível no momento.');
       return;
     }
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
@@ -79,7 +79,7 @@ const PlanCustomContactPage = () => {
       await navigator.clipboard.writeText(whatsappMessage);
       toast.success('Mensagem copiada.');
     } catch {
-      toast.error('Não foi possível copiar automaticamente.');
+      toast.error('Não foi possível copiar a mensagem.');
     }
   };
 

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { cancelBooking, adminCheckIn } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,8 +55,7 @@ const AdminBookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-all-bookings'] });
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao cancelar';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível cancelar a aula.'));
     },
   });
 
@@ -66,8 +66,7 @@ const AdminBookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-all-bookings'] });
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao registrar presença';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível registrar a presença.'));
     },
   });
 

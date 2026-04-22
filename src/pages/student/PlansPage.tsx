@@ -13,6 +13,7 @@ import AnimatedSavingsCounter from '@/components/plans/AnimatedSavingsCounter';
 import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
 import type { PlanOrder, PlanOrderStatus } from '@/lib/plan-orders';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowUpRight,
@@ -325,7 +326,7 @@ const PlansPage = () => {
       queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
       navigate(`/plans/checkout/${orderId}`);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível criar o pedido.')),
   });
 
   const createCustomOrderMutation = useMutation({
@@ -343,7 +344,7 @@ const PlansPage = () => {
       queryClient.invalidateQueries({ queryKey: ['student-open-plan-orders'] });
       navigate(`/plans/checkout/${orderId}`);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível criar o pedido personalizado.')),
   });
 
   const fixedPlansByClassType = useMemo<Record<ClassType, FixedPlan[]>>(() => {
@@ -481,7 +482,7 @@ const PlansPage = () => {
   };
 
   const promptLoginBeforePurchase = () => {
-    toast.info('Para continuar compra ou agendamento, faça login.', {
+    toast.info('Faça login para continuar.', {
       action: {
         label: 'Ir para login',
         onClick: redirectToLogin,

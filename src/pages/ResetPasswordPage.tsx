@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 const PASSWORD_RECOVERY_FLAG = 'auth:password-recovery';
 
@@ -47,10 +48,9 @@ const ResetPasswordPage = () => {
     try {
       await resetPassword(email);
       setEmailSent(true);
-      toast.success('Email de recuperação enviado!');
+      toast.success('E-mail de recuperação enviado.');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao enviar email';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível enviar o e-mail de recuperação.'));
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ const ResetPasswordPage = () => {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
-      toast.error('Senha deve ter no mínimo 6 caracteres');
+      toast.error('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
@@ -69,11 +69,10 @@ const ResetPasswordPage = () => {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem(PASSWORD_RECOVERY_FLAG);
       }
-      toast.success('Senha atualizada com sucesso!');
+      toast.success('Senha atualizada.');
       navigate('/login', { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao atualizar senha';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível atualizar a senha.'));
     } finally {
       setLoading(false);
     }
@@ -122,7 +121,7 @@ const ResetPasswordPage = () => {
         ) : (
           <form onSubmit={handleSendReset} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"

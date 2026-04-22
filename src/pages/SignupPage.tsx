@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Logo from '@/components/Logo';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -47,7 +48,7 @@ const SignupPage = () => {
     setLoading(true);
 
     if (password !== confirmPassword) {
-      toast.error('As senhas não coincidem');
+      toast.error('As senhas não coincidem.');
       setLoading(false);
       return;
     }
@@ -55,10 +56,9 @@ const SignupPage = () => {
     try {
       await signUp(email, password, firstName, lastName);
       setSuccess(true);
-      toast.success('Conta criada! Verifique seu email para confirmar.');
+      toast.success('Conta criada. Confirme seu e-mail para continuar.');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao cadastrar';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível criar sua conta.'));
     } finally {
       setLoading(false);
     }
@@ -70,8 +70,7 @@ const SignupPage = () => {
       await signInWithGoogle();
       navigate('/', { replace: true });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao continuar com Google';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível continuar com Google.'));
     } finally {
       setLoading(false);
     }
@@ -83,7 +82,7 @@ const SignupPage = () => {
         <div className="w-full max-w-sm animate-fade-in space-y-6 text-center">
           <Logo size="xl" className="w-full justify-center" showImageOnMobile stacked />
           <h1 className="font-display text-2xl uppercase tracking-widest text-primary">
-            Verifique seu email
+            Confirme seu e-mail
           </h1>
           <p className="text-muted-foreground">
             Enviamos um link de confirmação para <strong className="text-foreground">{email}</strong>
@@ -131,7 +130,7 @@ const SignupPage = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">E-mail</Label>
             <Input
               id="email"
               type="email"

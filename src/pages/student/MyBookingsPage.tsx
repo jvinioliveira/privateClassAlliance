@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { cancelBooking } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, X, AlertCircle } from 'lucide-react';
@@ -52,8 +53,7 @@ const MyBookingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['credit-purchase-history'] });
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao cancelar';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível cancelar a aula.'));
     },
   });
 

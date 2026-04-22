@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import { Plus, Clock, Trash2, Lock } from 'lucide-react';
 import { DEFAULT_LESSON_DURATION, DEFAULT_SLOT_CAPACITY } from '@/lib/constants';
 
@@ -111,7 +112,7 @@ const AdminSlotsPage = () => {
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-all-slots'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível criar o horário.')),
   });
 
   const createRecurrenceMutation = useMutation({
@@ -159,7 +160,7 @@ const AdminSlotsPage = () => {
       setRecOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-all-slots'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível criar a recorrência.')),
   });
 
   const batchMutation = useMutation({
@@ -238,7 +239,7 @@ const AdminSlotsPage = () => {
       setBatchOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-all-slots'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível atualizar os horários.')),
   });
 
   const toggleBlock = useMutation({
@@ -254,7 +255,7 @@ const AdminSlotsPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-all-slots'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível atualizar o horário.')),
   });
 
   const deleteSlot = useMutation({
@@ -266,7 +267,7 @@ const AdminSlotsPage = () => {
       toast.success('Horário excluído.');
       queryClient.invalidateQueries({ queryKey: ['admin-all-slots'] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível excluir o horário.')),
   });
 
   return (

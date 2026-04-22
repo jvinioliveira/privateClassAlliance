@@ -15,6 +15,7 @@ import {
   type PlanOrder,
   type PlanOrderStatus,
 } from '@/lib/plan-orders';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 type CheckoutSessionResponse = {
   checkoutUrl?: string;
@@ -112,7 +113,7 @@ const PlanCheckoutPage = () => {
 
       window.location.href = payload.checkoutUrl as string;
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(getFriendlyErrorMessage(err, 'Não foi possível iniciar o checkout.')),
   });
 
   const canStartStripeCheckout = !!order && isStripeCheckoutAllowed(order);
@@ -254,18 +255,18 @@ const PlanCheckoutPage = () => {
 
         {createStripeCheckoutMutation.isError && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700">
-            {(createStripeCheckoutMutation.error as Error).message}
+            Não foi possível iniciar o checkout agora. Tente novamente.
           </div>
         )}
 
         {order.last_payment_error && (
           <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-            Falha anterior de pagamento: {order.last_payment_error}
+            Houve uma falha na tentativa anterior de pagamento. Tente novamente.
           </div>
         )}
 
         <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
-          Segurança: valor e itens são recalculados no backend antes de criar a sessão. O status final do pedido vem do webhook do Stripe.
+          Segurança: valor e itens são validados antes da cobrança.
         </div>
       </div>
 

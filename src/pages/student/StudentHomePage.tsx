@@ -8,6 +8,7 @@ import { cancelBooking } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import {
   MonthlyCreditsCard,
   NextClassCard,
@@ -178,15 +179,14 @@ const StudentHomePage = () => {
     mutationFn: (bookingId: string) => cancelBooking(bookingId),
     onSuccess: (result) => {
       const warningMessage = result?.warning_message?.trim();
-      toast.success(warningMessage ? `Aula cancelada. ${warningMessage}` : 'Aula cancelada com sucesso.');
+      toast.success(warningMessage ? `Aula cancelada. ${warningMessage}` : 'Aula cancelada.');
       queryClient.invalidateQueries({ queryKey: ['student-home'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['student-home', 'credit-summary'] });
       queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Não foi possível cancelar esta aula.';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível cancelar a aula.'));
     },
   });
 

@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Users, User, Clock, AlertTriangle, Plus } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 
 type SlotTime = { start_time: string; end_time: string };
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
@@ -342,7 +343,7 @@ const CalendarPage = () => {
       partnerLast?: string | null;
     }) => bookSlot(slotId, seats, partnerFirst, partnerLast),
     onSuccess: () => {
-      toast.success('Aula agendada com sucesso!');
+      toast.success('Aula agendada.');
       setSelectedSlot(null);
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       queryClient.invalidateQueries({ queryKey: ['bookings-for-slots'] });
@@ -352,20 +353,18 @@ const CalendarPage = () => {
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao agendar';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível agendar a aula.'));
     },
   });
 
   const waitlistMutation = useMutation({
     mutationFn: (slotId: string) => joinWaitlist(slotId),
     onSuccess: () => {
-      toast.success('Adicionado à lista de espera!');
+      toast.success('Você entrou na lista de espera.');
       setSelectedSlot(null);
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao entrar na lista';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível entrar na lista de espera.'));
     },
   });
 

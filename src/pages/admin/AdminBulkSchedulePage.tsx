@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { getFriendlyErrorMessage } from '@/lib/ui-feedback';
 import { CheckCircle, XCircle } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
 import type { DatesSetArg, EventClickArg } from '@fullcalendar/core';
@@ -169,8 +170,7 @@ const AdminBulkSchedulePage = () => {
       setSelectedSlotIds([]);
     },
     onError: (err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Erro ao agendar em lote';
-      toast.error(message);
+      toast.error(getFriendlyErrorMessage(err, 'Não foi possível concluir o agendamento em lote.'));
     },
   });
 
