@@ -125,7 +125,7 @@ const PlanCheckoutPage = () => {
     }
 
     if (order.status === 'awaiting_approval') {
-      return 'Pagamento recebido. A liberação dos créditos está em revisão administrativa.';
+      return 'Pagamento confirmado. Estamos finalizando sua compra automaticamente.';
     }
 
     if (order.status === 'cancelled') {
@@ -137,6 +137,10 @@ const PlanCheckoutPage = () => {
 
     if (order.plan_type === 'custom') {
       return 'Plano personalizado com valor validado no servidor. Você pode pagar com Stripe com segurança.';
+    }
+
+    if (order.stripe_payment_status === 'paid') {
+      return 'Pagamento já identificado. Aguarde alguns instantes para atualização automática dos créditos.';
     }
 
     return 'Pagamento único via Stripe Checkout. Cartão e Pix disponíveis conforme sua conta Stripe.';
@@ -243,7 +247,15 @@ const PlanCheckoutPage = () => {
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Este pedido não está disponível para novo checkout.</p>
+          <p className="text-sm text-muted-foreground">
+            Este pedido já foi finalizado ou não está disponível para novo checkout.
+          </p>
+        )}
+
+        {createStripeCheckoutMutation.isError && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700">
+            {(createStripeCheckoutMutation.error as Error).message}
+          </div>
         )}
 
         {order.last_payment_error && (

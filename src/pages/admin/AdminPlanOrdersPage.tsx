@@ -223,6 +223,8 @@ const AdminPlanOrdersPage = () => {
 
   const selectedOrderCanApprove =
     !!selectedOrder &&
+    selectedOrder.payment_provider !== 'stripe' &&
+    !selectedOrder.credited_selection_id &&
     ((selectedOrder.plan_type === 'fixed' && selectedOrder.status === 'awaiting_approval') ||
       (selectedOrder.plan_type === 'custom' &&
         (selectedOrder.status === 'awaiting_contact' || selectedOrder.status === 'awaiting_approval')));
@@ -252,7 +254,7 @@ const AdminPlanOrdersPage = () => {
       <div className="rounded-xl border border-border bg-card p-4">
         <h1 className="font-display text-xl uppercase tracking-wider">Pedidos de compra</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Lista resumida de pedidos. Clique em um item para abrir os detalhes completos e aprovar/cancelar.
+          Acompanhe o status financeiro e a auditoria dos pedidos. Pagamentos Stripe aprovados são creditados automaticamente.
         </p>
       </div>
 
@@ -396,10 +398,22 @@ const AdminPlanOrdersPage = () => {
                   <p className="text-muted-foreground">Forma de pagamento</p>
                   <p className="font-medium text-foreground">{getPaymentMethodLabel(selectedOrder.payment_method)}</p>
                 </div>
+                <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                  <p className="text-muted-foreground">Crédito concedido em</p>
+                  <p className="font-medium text-foreground">
+                    {selectedOrder.credits_granted_at ? formatDateTimeBR(selectedOrder.credits_granted_at) : '-'}
+                  </p>
+                </div>
                 {selectedOrder.stripe_payment_status && (
                   <div className="rounded-md border border-border/70 bg-background/60 p-2">
                     <p className="text-muted-foreground">Status Stripe</p>
                     <p className="font-medium uppercase text-foreground">{selectedOrder.stripe_payment_status}</p>
+                  </div>
+                )}
+                {selectedOrder.requires_refund_review && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+                    <p className="text-muted-foreground">Revisão de estorno</p>
+                    <p className="font-medium text-amber-700">{selectedOrder.refund_review_reason || 'Pendente'}</p>
                   </div>
                 )}
                 {selectedOrder.stripe_checkout_session_id && (
@@ -477,8 +491,8 @@ const AdminPlanOrdersPage = () => {
                   </div>
                   {!selectedOrderCanApprove && (
                     <p className="text-xs text-muted-foreground">
-                      Aprovação disponível somente após o aluno informar pagamento (plano fixo) ou após contato confirmado
-                      (plano personalizado).
+                      Pedidos Stripe são creditados automaticamente após confirmação do webhook. Aprovação manual permanece
+                      apenas para fluxos legados.
                     </p>
                   )}
                 </div>

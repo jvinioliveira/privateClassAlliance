@@ -14,6 +14,11 @@ type PlanOrderRow = {
   custom_quantity: number | null;
   price_amount_cents: number;
   status: string;
+  credited_selection_id: string | null;
+  credits_granted_at: string | null;
+  stripe_checkout_url: string | null;
+  stripe_checkout_expires_at: string | null;
+  stripe_checkout_session_id: string | null;
   stripe_payment_status: string | null;
   currency: string | null;
 };
@@ -147,6 +152,8 @@ const createStripeSession = async ({
       class_type: order.class_type,
     },
     automatic_tax: { enabled: false },
+  }, {
+    idempotencyKey: `plan-order-checkout:${order.id}:${amountCents}:${currency}`,
   });
 };
 
@@ -170,7 +177,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('plan_orders')
-      .select('id, user_id, plan_id, plan_name, plan_type, class_type, credits_amount, custom_quantity, price_amount_cents, status, stripe_payment_status, currency')
+      .select('id, user_id, plan_id, plan_name, plan_type, class_type, credits_amount, custom_quantity, price_amount_cents, status, credited_selection_id, credits_granted_at, stripe_checkout_url, stripe_checkout_expires_at, stripe_checkout_session_id, stripe_payment_status, currency')
       .eq('id', orderId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -183,12 +190,34 @@ Deno.serve(async (req) => {
       return jsonResponse(400, { error: 'Esse pedido não está disponível para pagamento.' });
     }
 
+    if (order.credited_selection_id || order.credits_granted_at) {
+      return jsonResponse(409, {
+        error: 'Esse pedido já foi pago e os créditos já foram liberados. Não é possível gerar novo checkout.',
+      });
+    }
+
     if (!['pending_payment', 'awaiting_contact', 'awaiting_approval'].includes(order.status)) {
       return jsonResponse(400, { error: 'Status inválido para checkout' });
     }
 
-    if (order.status === 'awaiting_approval' && ['paid', 'pending_review'].includes(order.stripe_payment_status || '')) {
-      return jsonResponse(400, { error: 'Esse pedido já tem pagamento confirmado e está aguardando aprovação.' });
+    if (['paid', 'pending_review', 'refunded', 'partially_refunded'].includes(order.stripe_payment_status || '')) {
+      return jsonResponse(400, { error: 'Esse pedido já tem pagamento confirmado e não pode gerar novo checkout.' });
+    }
+
+    if (
+      order.stripe_checkout_url &&
+      order.stripe_checkout_session_id &&
+      order.stripe_checkout_expires_at &&
+      new Date(order.stripe_checkout_expires_at).getTime() > Date.now()
+    ) {
+      return jsonResponse(200, {
+        orderId: order.id,
+        checkoutUrl: order.stripe_checkout_url,
+        sessionId: order.stripe_checkout_session_id,
+        amountCents: order.price_amount_cents,
+        currency: (order.currency || 'brl').toLowerCase(),
+        reusedSession: true,
+      });
     }
 
     const validatedAmount = await recalculateOrderAmountCents(order as PlanOrderRow);
@@ -214,6 +243,7 @@ Deno.serve(async (req) => {
         payment_method: 'stripe_checkout',
         stripe_checkout_session_id: session.id,
         stripe_checkout_url: session.url,
+        stripe_checkout_expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
         stripe_payment_status: session.payment_status === 'paid' ? 'paid' : 'unpaid',
         payment_updated_at: new Date().toISOString(),
         status: normalizedStatus,

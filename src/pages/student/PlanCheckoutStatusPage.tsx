@@ -75,7 +75,7 @@ const PlanCheckoutStatusPage = () => {
       return {
         icon: Clock3,
         title: 'Pagamento confirmado',
-        message: 'Seu pagamento foi recebido. A liberação dos créditos está em revisão administrativa.',
+        message: 'Seu pagamento foi recebido. Os créditos serão liberados automaticamente em instantes.',
         tone: 'pending' as const,
       };
     }
@@ -86,6 +86,15 @@ const PlanCheckoutStatusPage = () => {
         title: 'Pedido cancelado',
         message: 'Este pedido foi cancelado. Você pode gerar um novo checkout a partir dos planos.',
         tone: 'cancel' as const,
+      };
+    }
+
+    if (order?.duplicate_payment_detected || order?.requires_refund_review) {
+      return {
+        icon: AlertCircle,
+        title: 'Pagamento em revisão',
+        message: 'Detectamos uma situação de pagamento que requer validação. Nosso time já foi notificado.',
+        tone: 'error' as const,
       };
     }
 
@@ -122,7 +131,7 @@ const PlanCheckoutStatusPage = () => {
       message: 'Não conseguimos validar o retorno do pagamento. Retome o pedido ou fale com o suporte.',
       tone: 'error' as const,
     };
-  }, [order?.status, state]);
+  }, [order?.duplicate_payment_detected, order?.requires_refund_review, order?.status, state]);
 
   const toneClass =
     ui.tone === 'success'

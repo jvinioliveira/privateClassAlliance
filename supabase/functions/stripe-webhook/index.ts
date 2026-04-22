@@ -40,7 +40,7 @@ const upsertWebhookEvent = async (payload: {
 const findOrderBySession = async (sessionId: string) => {
   const { data } = await supabaseAdmin
     .from('plan_orders')
-    .select('id, status')
+    .select('id, status, credited_selection_id, stripe_payment_status')
     .eq('stripe_checkout_session_id', sessionId)
     .maybeSingle();
 
@@ -50,14 +50,48 @@ const findOrderBySession = async (sessionId: string) => {
 const findOrderByPaymentIntent = async (paymentIntentId: string) => {
   const { data } = await supabaseAdmin
     .from('plan_orders')
-    .select('id, status')
+    .select('id, status, credited_selection_id, stripe_payment_status')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle();
 
   return data;
 };
 
-const isTerminalStatus = (status: string | null | undefined) => status === 'approved' || status === 'cancelled';
+const processPaidOrder = async (args: {
+  orderId: string;
+  stripeEventId: string;
+  checkoutSessionId?: string | null;
+  paymentIntentId?: string | null;
+  customerId?: string | null;
+  amountTotalCents?: number | null;
+  currency?: string | null;
+  paymentMethodType?: string | null;
+  paidAt?: string | null;
+}) => {
+  const { data, error } = await supabaseAdmin.rpc('process_stripe_paid_order', {
+    p_order_id: args.orderId,
+    p_stripe_event_id: args.stripeEventId,
+    p_checkout_session_id: args.checkoutSessionId ?? null,
+    p_payment_intent_id: args.paymentIntentId ?? null,
+    p_customer_id: args.customerId ?? null,
+    p_amount_total_cents: args.amountTotalCents ?? null,
+    p_currency: (args.currency || 'brl').toLowerCase(),
+    p_payment_method_type: args.paymentMethodType ?? null,
+    p_paid_at: args.paidAt ?? new Date().toISOString(),
+  });
+
+  if (error) throw new Error(error.message);
+  return data as { result?: string; credited?: boolean } | null;
+};
+
+const shouldIgnoreTerminalFailureTransition = (order: {
+  status?: string | null;
+  credited_selection_id?: string | null;
+  stripe_payment_status?: string | null;
+} | null) => {
+  if (!order) return false;
+  return order.status === 'approved' || !!order.credited_selection_id || order.stripe_payment_status === 'paid';
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -78,7 +112,7 @@ Deno.serve(async (req) => {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
+    event = await stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Invalid signature';
     return new Response(msg, { status: 400, headers: corsHeaders });
@@ -98,87 +132,70 @@ Deno.serve(async (req) => {
 
   try {
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object;
         orderId = session.metadata?.order_id ?? null;
+
         if (!orderId && session.id) {
-          const orderBySession = await findOrderBySession(session.id);
-          orderId = orderBySession?.id ?? null;
+          const bySession = await findOrderBySession(session.id);
+          orderId = bySession?.id ?? null;
         }
 
         if (orderId) {
-          const paid = session.payment_status === 'paid';
-          const nowIso = new Date().toISOString();
-          await supabaseAdmin
-            .from('plan_orders')
-            .update({
-              payment_provider: 'stripe',
-              payment_method: 'stripe_checkout',
-              status: paid ? 'awaiting_approval' : 'pending_payment',
-              stripe_checkout_session_id: session.id,
-              stripe_payment_intent_id:
-                typeof session.payment_intent === 'string'
-                  ? session.payment_intent
-                  : session.payment_intent?.id ?? null,
-              stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
-              stripe_payment_status: paid ? 'pending_review' : 'unpaid',
-              amount_subtotal_cents: session.amount_subtotal,
-              amount_total_cents: session.amount_total,
-              currency: (session.currency || 'brl').toLowerCase(),
-              paid_at: paid ? nowIso : null,
-              payment_confirmed_at: paid ? nowIso : null,
-              payment_updated_at: nowIso,
-              stripe_latest_event_id: event.id,
-              last_payment_error: null,
-            })
-            .eq('id', orderId);
+          const paymentIntentId =
+            typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : session.payment_intent?.id ?? null;
+
+          const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
+
+          const paidAt = new Date().toISOString();
+
+          await processPaidOrder({
+            orderId,
+            stripeEventId: event.id,
+            checkoutSessionId: session.id,
+            paymentIntentId,
+            customerId,
+            amountTotalCents: session.amount_total,
+            currency: session.currency,
+            paidAt,
+          });
         }
         break;
       }
-      case 'checkout.session.async_payment_succeeded':
+
       case 'payment_intent.succeeded': {
-        const intent = event.type === 'payment_intent.succeeded' ? event.data.object : null;
-        const intentId = intent?.id || null;
+        const intent = event.data.object;
+        const byIntent = await findOrderByPaymentIntent(intent.id);
+        orderId = byIntent?.id ?? null;
 
-        if (intentId) {
-          const order = await findOrderByPaymentIntent(intentId);
-          orderId = order?.id ?? null;
-
-          if (orderId) {
-            const nowIso = new Date().toISOString();
-            await supabaseAdmin
-              .from('plan_orders')
-              .update({
-                payment_provider: 'stripe',
-                payment_method: 'stripe_checkout',
-                status: 'awaiting_approval',
-                stripe_payment_intent_id: intent.id,
-                stripe_customer_id: typeof intent.customer === 'string' ? intent.customer : null,
-                stripe_payment_status: 'pending_review',
-                amount_total_cents: intent.amount_received || intent.amount,
-                currency: (intent.currency || 'brl').toLowerCase(),
-                payment_method_type: intent.payment_method_types?.[0] ?? null,
-                paid_at: nowIso,
-                payment_confirmed_at: nowIso,
-                payment_updated_at: nowIso,
-                stripe_latest_event_id: event.id,
-                last_payment_error: null,
-              })
-              .eq('id', orderId);
-          }
+        if (orderId) {
+          await processPaidOrder({
+            orderId,
+            stripeEventId: event.id,
+            paymentIntentId: intent.id,
+            customerId: typeof intent.customer === 'string' ? intent.customer : null,
+            amountTotalCents: intent.amount_received || intent.amount,
+            currency: intent.currency,
+            paymentMethodType: intent.payment_method_types?.[0] ?? null,
+            paidAt: new Date().toISOString(),
+          });
         }
         break;
       }
+
       case 'checkout.session.async_payment_failed':
       case 'payment_intent.payment_failed': {
         const intent = event.type === 'payment_intent.payment_failed' ? event.data.object : null;
-        const intentId = intent?.id || null;
+        const intentId = intent?.id ?? null;
 
         if (intentId) {
           const order = await findOrderByPaymentIntent(intentId);
           orderId = order?.id ?? null;
 
-          if (orderId && !isTerminalStatus(order?.status)) {
+          if (orderId && !shouldIgnoreTerminalFailureTransition(order)) {
             await supabaseAdmin
               .from('plan_orders')
               .update({
@@ -193,17 +210,19 @@ Deno.serve(async (req) => {
         }
         break;
       }
+
       case 'checkout.session.expired': {
         const session = event.data.object;
         orderId = session.metadata?.order_id ?? null;
+
         if (!orderId && session.id) {
-          const orderBySession = await findOrderBySession(session.id);
-          orderId = orderBySession?.id ?? null;
+          const order = await findOrderBySession(session.id);
+          orderId = order?.id ?? null;
         }
 
         if (orderId) {
-          const order = await findOrderBySession(session.id);
-          if (!isTerminalStatus(order?.status)) {
+          const order = session.id ? await findOrderBySession(session.id) : null;
+          if (!shouldIgnoreTerminalFailureTransition(order)) {
             await supabaseAdmin
               .from('plan_orders')
               .update({
@@ -218,22 +237,29 @@ Deno.serve(async (req) => {
         }
         break;
       }
+
       case 'charge.refunded': {
         const charge = event.data.object;
         const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : null;
+
         if (paymentIntentId) {
-          const order = await findOrderByPaymentIntent(paymentIntentId);
-          orderId = order?.id ?? null;
+          const byIntent = await findOrderByPaymentIntent(paymentIntentId);
+          orderId = byIntent?.id ?? null;
         }
 
         if (orderId) {
           const isFull = (charge.amount_refunded ?? 0) >= (charge.amount ?? 0);
+
           await supabaseAdmin
             .from('plan_orders')
             .update({
               stripe_payment_status: isFull ? 'refunded' : 'partially_refunded',
               refund_status: isFull ? 'full' : 'partial',
               refunded_at: new Date().toISOString(),
+              requires_refund_review: true,
+              refund_review_reason: isFull
+                ? 'Reembolso total confirmado pela Stripe. Verificar ajuste de créditos manualmente.'
+                : 'Reembolso parcial confirmado pela Stripe. Verificar ajuste de créditos manualmente.',
               stripe_latest_event_id: event.id,
               payment_updated_at: new Date().toISOString(),
             })
@@ -241,6 +267,7 @@ Deno.serve(async (req) => {
         }
         break;
       }
+
       default:
         await upsertWebhookEvent({
           stripe_event_id: event.id,
@@ -251,6 +278,7 @@ Deno.serve(async (req) => {
           processing_result: 'ignored',
           error_message: null,
         });
+
         return new Response('ok', { status: 200, headers: corsHeaders });
     }
 

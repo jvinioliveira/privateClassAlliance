@@ -33,6 +33,7 @@ export type PlanOrder = {
   payment_confirmed_at: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  credited_selection_id?: string | null;
   payment_provider?: 'legacy_nupay' | 'stripe' | null;
   stripe_checkout_session_id?: string | null;
   stripe_payment_intent_id?: string | null;
@@ -51,10 +52,17 @@ export type PlanOrder = {
   amount_subtotal_cents?: number | null;
   amount_total_cents?: number | null;
   paid_at?: string | null;
+  credits_granted_at?: string | null;
+  credit_grant_source?: 'admin_manual' | 'stripe_webhook' | null;
   payment_method_type?: string | null;
   last_payment_error?: string | null;
   refunded_at?: string | null;
   refund_status?: 'none' | 'partial' | 'full' | null;
+  stripe_checkout_expires_at?: string | null;
+  duplicate_payment_detected?: boolean;
+  duplicate_payment_count?: number;
+  requires_refund_review?: boolean;
+  refund_review_reason?: string | null;
   stripe_latest_event_id?: string | null;
   payment_updated_at?: string | null;
   created_at: string;
