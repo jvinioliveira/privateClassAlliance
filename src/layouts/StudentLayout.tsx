@@ -42,7 +42,7 @@ const StudentLayout = () => {
   });
 
   const studentNavItems = [
-    { to: '/home', icon: House, label: 'Início' },
+    { to: '/dashboard', icon: House, label: 'Início' },
     { to: '/calendar', icon: Calendar, label: 'Agenda' },
     { to: '/plans', icon: WalletCards, label: 'Planos' },
     { to: '/notifications', icon: Bell, label: 'Notificações', badgeCount: unreadCount },

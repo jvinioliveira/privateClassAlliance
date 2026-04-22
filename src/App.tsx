@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { Component, ErrorInfo, ReactNode, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,7 +42,6 @@ const AdminPlansPage = lazy(() => import("@/pages/admin/AdminPlansPage"));
 const AdminPlanOrdersPage = lazy(() => import("@/pages/admin/AdminPlanOrdersPage"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
-
 const LAST_ROUTE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 const queryClient = new QueryClient({
@@ -61,17 +60,46 @@ const AppSuspenseFallback = () => (
   </div>
 );
 
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
+    // Keeps the UI responsive if a lazy chunk fails to load.
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5">
+            <h1 className="text-base font-semibold">Falha ao carregar esta página</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Atualize para sincronizar a versão mais recente.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Atualizar página
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const HomeRedirect = () => {
   const { user, profile, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
+  if (loading) return <AppSuspenseFallback />;
   if (!user) return <Navigate to="/plans" replace />;
 
   if (profile?.role === "admin") {
@@ -80,7 +108,16 @@ const HomeRedirect = () => {
   }
 
   const savedStudentRoute = getRecentLastRoute(STUDENT_LAST_ROUTE_KEY, LAST_ROUTE_MAX_AGE_MS);
-  return <Navigate to={savedStudentRoute || "/home"} replace />;
+  return <Navigate to={savedStudentRoute || "/dashboard"} replace />;
+};
+
+const LegacyStudentHomeRedirect = () => {
+  const { user, profile, loading } = useAuth();
+
+  if (loading) return <AppSuspenseFallback />;
+  if (!user) return <Navigate to="/plans" replace />;
+  if (profile?.role === "admin") return <Navigate to="/admin" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 const App = () => (
@@ -90,51 +127,65 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Suspense fallback={<AppSuspenseFallback />}>
-            <Routes>
-              {/* Public */}
-              <Route path="/" element={<HomeRedirect />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
-              <Route element={<StudentLayout />}>
+          <RouteErrorBoundary>
+            <Suspense fallback={<AppSuspenseFallback />}>
+              <Routes>
+                {/* Public */}
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/home" element={<HomeRedirect />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
                 <Route path="/plans" element={<PlansPage />} />
-              </Route>
 
-              {/* Student */}
-              <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
-                <Route path="/home" element={<StudentHomePage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/my-bookings" element={<MyBookingsPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/plans/orders" element={<PlanOrdersPage />} />
-                <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
-                <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />
-                <Route path="/plans/checkout/pending" element={<PlanCheckoutStatusPage />} />
-                <Route path="/plans/checkout/error" element={<PlanCheckoutStatusPage />} />
-                <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
-                <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
-              </Route>
+                {/* Student */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <StudentLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/dashboard" element={<StudentHomePage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/my-bookings" element={<MyBookingsPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/plans/orders" element={<PlanOrdersPage />} />
+                  <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
+                  <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />
+                  <Route path="/plans/checkout/pending" element={<PlanCheckoutStatusPage />} />
+                  <Route path="/plans/checkout/error" element={<PlanCheckoutStatusPage />} />
+                  <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
+                  <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
+                </Route>
 
-              {/* Admin */}
-              <Route element={<ProtectedRoute requireAdmin><AdminLayout /></ProtectedRoute>}>
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/slots" element={<AdminSlotsPage />} />
-                <Route path="/admin/bookings" element={<AdminBookingsPage />} />
-                <Route path="/admin/students" element={<AdminStudentsPage />} />
-                <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
-                <Route path="/admin/reports" element={<AdminReportsPage />} />
-                <Route path="/admin/plans" element={<AdminPlansPage />} />
-                <Route path="/admin/plan-orders" element={<AdminPlanOrdersPage />} />
-                <Route path="/admin/profile" element={<ProfilePage />} />
-              </Route>
+                {/* Admin */}
+                <Route
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/slots" element={<AdminSlotsPage />} />
+                  <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+                  <Route path="/admin/students" element={<AdminStudentsPage />} />
+                  <Route path="/admin/bulk-schedule" element={<AdminBulkSchedulePage />} />
+                  <Route path="/admin/reports" element={<AdminReportsPage />} />
+                  <Route path="/admin/plans" element={<AdminPlansPage />} />
+                  <Route path="/admin/plan-orders" element={<AdminPlanOrdersPage />} />
+                  <Route path="/admin/profile" element={<ProfilePage />} />
+                </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+                <Route path="/student/home" element={<LegacyStudentHomeRedirect />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </RouteErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

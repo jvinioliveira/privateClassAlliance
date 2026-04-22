@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,12 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const hasShownAuthRequiredToast = useRef(false);
+  const redirectTo = useMemo(() => {
+    const state = location.state as { redirectTo?: string } | null;
+    return state?.redirectTo || '/';
+  }, [location.state]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -47,12 +53,19 @@ const LoginPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const state = location.state as { reason?: string } | null;
+    if (state?.reason !== 'auth_required' || hasShownAuthRequiredToast.current) return;
+    hasShownAuthRequiredToast.current = true;
+    toast.info('Faça login para continuar essa ação.');
+  }, [location.state]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await signIn(email, password);
-      navigate('/', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao entrar';
       toast.error(message);
@@ -65,7 +78,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      navigate('/', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao entrar com Google';
       toast.error(message);

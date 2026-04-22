@@ -471,11 +471,20 @@ const PlansPage = () => {
     : -1;
   const latestOpenOrder = openOrders[0] ?? null;
 
+  const redirectToLogin = () => {
+    navigate('/login', {
+      state: {
+        reason: 'auth_required',
+        redirectTo: '/plans',
+      },
+    });
+  };
+
   const promptLoginBeforePurchase = () => {
-    toast('Você precisa estar logado para comprar créditos.', {
+    toast.info('Para continuar compra ou agendamento, faça login.', {
       action: {
         label: 'Ir para login',
-        onClick: () => navigate('/login'),
+        onClick: redirectToLogin,
       },
     });
   };
@@ -543,18 +552,33 @@ const PlansPage = () => {
             <h1 className="font-display text-xl uppercase tracking-wider">Planos e créditos</h1>
             <p className="pt-2 text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constância.</p>
           </div>
-          {!user && (
+          {user ? (
             <Badge variant="outline" className="w-fit">
-              Navegação livre • login só no checkout
+              Área do aluno
             </Badge>
+          ) : (
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <Badge variant="outline" className="w-fit">
+                Navegação livre • login só na ação privada
+              </Badge>
+              <Button size="sm" onClick={redirectToLogin}>
+                Entrar
+              </Button>
+            </div>
           )}
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">
-            Créditos utilizados: {usedCredits}/{totalCredits}
-          </Badge>
-          <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
+          {user ? (
+            <>
+              <Badge variant="secondary">
+                Créditos utilizados: {usedCredits}/{totalCredits}
+              </Badge>
+              <Badge variant={remaining > 0 ? 'default' : 'outline'}>Restantes: {remaining}</Badge>
+            </>
+          ) : (
+            <Badge variant="secondary">Faça login para acompanhar seu saldo de créditos</Badge>
+          )}
           {selectedPlan?.lesson_plans?.name && (
             <Badge variant="outline">Último plano comprado: {selectedPlan.lesson_plans.name}</Badge>
           )}
