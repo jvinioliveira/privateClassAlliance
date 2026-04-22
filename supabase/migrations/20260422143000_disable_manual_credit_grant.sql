@@ -1,4 +1,4 @@
-﻿-- Disable manual credit granting via admin review.
+-- Disable manual credit granting via admin review.
 -- Plan order approval is now exclusively handled by Stripe webhook automation.
 
 CREATE OR REPLACE FUNCTION public.review_plan_order(
