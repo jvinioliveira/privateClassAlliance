@@ -120,8 +120,8 @@ const ruleItems: RuleItem[] = [
   },
   {
     icon: CheckCircle2,
-    title: 'Confirmação manual',
-    description: 'Seus créditos são liberados somente após validação do pagamento pelo professor.',
+    title: 'Confirmação automática',
+    description: 'Seus créditos são liberados automaticamente após confirmação do pagamento.',
   },
 ];
 
@@ -471,12 +471,29 @@ const PlansPage = () => {
     : -1;
   const latestOpenOrder = openOrders[0] ?? null;
 
+  const promptLoginBeforePurchase = () => {
+    toast('Você precisa estar logado para comprar créditos.', {
+      action: {
+        label: 'Ir para login',
+        onClick: () => navigate('/login'),
+      },
+    });
+  };
+
   const handleFixedPlanPurchase = (planData: PurchasePlanData, planId: string) => {
+    if (!user) {
+      promptLoginBeforePurchase();
+      return;
+    }
     setLastPurchase(planData);
     createFixedOrderMutation.mutate(planId);
   };
 
   const handleCustomPlanPurchase = (planData: PurchasePlanData) => {
+    if (!user) {
+      promptLoginBeforePurchase();
+      return;
+    }
     setLastPurchase(planData);
     createCustomOrderMutation.mutate({
       classType: planData.classType,
@@ -526,6 +543,11 @@ const PlansPage = () => {
             <h1 className="font-display text-xl uppercase tracking-wider">Planos e créditos</h1>
             <p className="pt-2 text-sm text-muted-foreground">Escolha o plano ideal para sua rotina e treine com constância.</p>
           </div>
+          {!user && (
+            <Badge variant="outline" className="w-fit">
+              Navegação livre • login só no checkout
+            </Badge>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">

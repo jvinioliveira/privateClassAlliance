@@ -53,7 +53,7 @@ const AdminLayout = () => {
       return count ?? 0;
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   });
 
   useEffect(() => {

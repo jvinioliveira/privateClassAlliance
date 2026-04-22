@@ -49,6 +49,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 1,
     },
   },
 });
@@ -70,7 +72,7 @@ const HomeRedirect = () => {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/plans" replace />;
 
   if (profile?.role === "admin") {
     const savedAdminRoute = getRecentLastRoute(ADMIN_LAST_ROUTE_KEY, LAST_ROUTE_MAX_AGE_MS);
@@ -96,6 +98,9 @@ const App = () => (
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
+              <Route element={<StudentLayout />}>
+                <Route path="/plans" element={<PlansPage />} />
+              </Route>
 
               {/* Student */}
               <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
@@ -105,7 +110,6 @@ const App = () => (
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/plans" element={<PlansPage />} />
                 <Route path="/plans/orders" element={<PlanOrdersPage />} />
                 <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
                 <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />

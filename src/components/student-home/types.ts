@@ -19,12 +19,6 @@ export interface RecentClassSummary {
   status: StatusBadgeKind;
 }
 
-export interface CoachMessageSummary {
-  title: string;
-  content: string;
-  createdAtLabel?: string;
-}
-
 export interface ProgressStats {
   totalCompleted: number;
   completedThisMonth: number;

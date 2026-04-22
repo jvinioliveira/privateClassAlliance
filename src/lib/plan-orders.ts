@@ -92,7 +92,7 @@ export const getPlanOrderStatusLabel = (status: PlanOrderStatus) => {
     case 'pending_payment':
       return 'Aguardando pagamento';
     case 'awaiting_approval':
-      return 'Aguardando aprovação';
+      return 'Pagamento em processamento';
     case 'approved':
       return 'Aprovado';
     case 'cancelled':
@@ -109,7 +109,7 @@ export const getPaymentMethodLabel = (method: PlanOrderPaymentMethod) => {
     case 'pix':
       return 'PIX';
     case 'credit_link':
-      return 'NuPay (Nubank)';
+      return 'Link legado';
     case 'manual_contact':
       return 'Contato manual';
     case 'stripe_checkout':

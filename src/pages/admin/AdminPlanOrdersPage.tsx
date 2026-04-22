@@ -75,7 +75,7 @@ const getStatusBadgeClassName = (status: PlanOrderStatus) => {
 };
 
 const getAttemptProviderLabel = (provider: string) => {
-  if (provider === 'nupay') return 'NuPay';
+  if (provider === 'nupay') return 'Legado';
   if (provider === 'stripe') return 'Stripe';
   return provider;
 };

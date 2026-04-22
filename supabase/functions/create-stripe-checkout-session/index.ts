@@ -32,7 +32,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
 }
 
 const SITE_URL = (Deno.env.get('SITE_URL') || 'http://localhost:8080').replace(/\/$/, '');
-const STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES = ['card'] as const;
+const STRIPE_ENABLE_PIX = (Deno.env.get('STRIPE_ENABLE_PIX') || 'false').toLowerCase() === 'true';
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -108,16 +108,23 @@ const recalculateOrderAmountCents = async (order: PlanOrderRow) => {
   return total;
 };
 
+const getCheckoutPaymentMethodTypes = () => {
+  if (!STRIPE_ENABLE_PIX) return ['card'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+  return ['card', 'pix'] as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+};
+
 const createStripeSession = async ({
   stripe,
   userEmail,
   order,
   amountCents,
+  paymentMethodTypes,
 }: {
   stripe: Stripe;
   userEmail: string | undefined;
   order: PlanOrderRow;
   amountCents: number;
+  paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
 }) => {
   const currency = (order.currency || 'brl').toLowerCase();
   const successUrl = `${SITE_URL}/plans/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`;
@@ -128,7 +135,7 @@ const createStripeSession = async ({
     success_url: successUrl,
     cancel_url: cancelUrl,
     customer_email: userEmail,
-    payment_method_types: [...STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES],
+    payment_method_types: paymentMethodTypes,
     allow_promotion_codes: true,
     expires_at: Math.floor(Date.now() / 1000) + 60 * 30,
     line_items: [
@@ -223,12 +230,34 @@ Deno.serve(async (req) => {
     const validatedAmount = await recalculateOrderAmountCents(order as PlanOrderRow);
 
     const stripe = getStripeClient();
-    const session = await createStripeSession({
-      stripe,
-      userEmail: user.email,
-      order: order as PlanOrderRow,
-      amountCents: validatedAmount,
-    });
+    const preferredPaymentMethods = getCheckoutPaymentMethodTypes();
+    let session: Stripe.Checkout.Session;
+
+    try {
+      session = await createStripeSession({
+        stripe,
+        userEmail: user.email,
+        order: order as PlanOrderRow,
+        amountCents: validatedAmount,
+        paymentMethodTypes: preferredPaymentMethods,
+      });
+    } catch (stripeError) {
+      const message = stripeError instanceof Error ? stripeError.message : '';
+      const pixRequested = preferredPaymentMethods.includes('pix');
+      const pixUnsupported =
+        pixRequested &&
+        message.toLowerCase().includes('payment method type provided: pix is invalid');
+
+      if (!pixUnsupported) throw stripeError;
+
+      session = await createStripeSession({
+        stripe,
+        userEmail: user.email,
+        order: order as PlanOrderRow,
+        amountCents: validatedAmount,
+        paymentMethodTypes: ['card'],
+      });
+    }
 
     const normalizedStatus = order.status === 'awaiting_contact' ? 'pending_payment' : order.status;
 

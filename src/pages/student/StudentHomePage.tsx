@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { fetchStudentCreditSummary, type StudentCreditSummary } from '@/lib/student-credits';
 import {
-  CoachMessageCard,
   MonthlyCreditsCard,
   NextClassCard,
   RecentClassesCard,
@@ -19,7 +18,6 @@ import {
   WelcomeHeader,
 } from '@/components/student-home';
 import type {
-  CoachMessageSummary,
   NextClassSummary,
   ProgressStats,
   RecentClassSummary,
@@ -28,7 +26,6 @@ import type {
 
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 type SlotRow = Database['public']['Tables']['availability_slots']['Row'];
-type DirectMessageRow = Database['public']['Tables']['direct_messages']['Row'];
 type BookingWithSlot = BookingRow & { slot: SlotRow | null };
 type BookingWithSlotRelation = BookingRow & { availability_slots: SlotRow | null };
 
@@ -140,10 +137,6 @@ const StudentHomePage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const monthRef = getMonthRef();
-  const chatHistoryCutoffIso = useMemo(
-    () => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    [],
-  );
 
   const bookingsQuery = useQuery<BookingWithSlot[]>({
     queryKey: ['student-home', 'bookings', user?.id],
@@ -177,26 +170,6 @@ const StudentHomePage = () => {
         };
       }
       return fetchStudentCreditSummary(user.id);
-    },
-    enabled: !!user,
-  });
-
-  const coachMessagesQuery = useQuery<DirectMessageRow[]>({
-    queryKey: ['student-home', 'coach-messages', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('direct_messages')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .is('read_at', null)
-        .gte('created_at', chatHistoryCutoffIso)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return data ?? [];
     },
     enabled: !!user,
   });
@@ -306,21 +279,6 @@ const StudentHomePage = () => {
     };
   }, [bookings, monthRef, monthlyLimit]);
 
-  const coachMessage = useMemo<CoachMessageSummary | null>(() => {
-    const selected = (coachMessagesQuery.data ?? []).find((item) => (item.message || '').trim().length > 0);
-    if (!selected?.message) return null;
-
-    return {
-      title: 'Mensagem do professor',
-      content: selected.message,
-      createdAtLabel: new Date(selected.created_at).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        timeZone: 'America/Sao_Paulo',
-      }),
-    };
-  }, [coachMessagesQuery.data]);
-
   const subtitle = nextClass
     ? 'Veja sua próxima aula e agende com facilidade.'
     : remainingCredits > 0
@@ -402,14 +360,6 @@ const StudentHomePage = () => {
           </div>
         </motion.div>
 
-        <motion.div variants={sectionVariants}>
-          <CoachMessageCard
-            loading={coachMessagesQuery.isLoading}
-            hasError={coachMessagesQuery.isError}
-            message={coachMessage}
-            onOpenInbox={() => navigate('/notifications')}
-          />
-        </motion.div>
       </motion.div>
     </div>
   );

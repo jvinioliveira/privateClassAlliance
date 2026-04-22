@@ -6,4 +6,3 @@ export { default as SmartReminderBanner } from './SmartReminderBanner';
 export { default as ScheduleClassCTA } from './ScheduleClassCTA';
 export { default as RecentClassesCard } from './RecentClassesCard';
 export { default as StudentProgressCard } from './StudentProgressCard';
-export { default as CoachMessageCard } from './CoachMessageCard';
