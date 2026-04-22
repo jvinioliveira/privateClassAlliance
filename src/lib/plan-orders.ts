@@ -92,13 +92,13 @@ export const getPlanOrderStatusLabel = (status: PlanOrderStatus) => {
     case 'pending_payment':
       return 'Aguardando pagamento';
     case 'awaiting_approval':
-      return 'Pagamento em processamento';
+      return 'Pagamento confirmado';
     case 'approved':
       return 'Aprovado';
     case 'cancelled':
       return 'Cancelado';
     case 'awaiting_contact':
-      return 'Aguardando contato';
+      return 'Aguardando atendimento';
     default:
       return status;
   }
@@ -109,9 +109,9 @@ export const getPaymentMethodLabel = (method: PlanOrderPaymentMethod) => {
     case 'pix':
       return 'PIX';
     case 'credit_link':
-      return 'Link legado';
+      return 'Link de pagamento';
     case 'manual_contact':
-      return 'Contato manual';
+      return 'Atendimento';
     case 'stripe_checkout':
       return 'Stripe Checkout';
     default:

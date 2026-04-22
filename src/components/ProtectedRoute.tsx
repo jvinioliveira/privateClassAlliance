@@ -1,5 +1,6 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -21,14 +22,30 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   if (!user) {
     const redirectTo = `${location.pathname}${location.search}${location.hash}`;
     return (
-      <Navigate
-        to="/login"
-        replace
-        state={{
-          reason: 'auth_required',
-          redirectTo,
-        }}
-      />
+      <div className="flex min-h-[60dvh] items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-xl border border-border bg-card p-5">
+          <h1 className="font-display text-lg uppercase tracking-wider">Acesso restrito</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Faça login para acessar esta área com segurança.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Button asChild className="w-full sm:w-auto">
+              <Link
+                to="/login"
+                state={{
+                  reason: 'auth_required',
+                  redirectTo,
+                }}
+              >
+                Fazer login
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link to="/dashboard">Voltar ao início</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
     );
   }
   if (!requireAdmin && profile?.role === 'admin') return <Navigate to="/admin" replace />;

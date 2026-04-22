@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -34,7 +34,7 @@ const PAGE_SIZE = 5;
 
 const filterOptions: Array<{ value: PlanOrderStatus; label: string }> = [
   { value: 'pending_payment', label: 'Aguardando pagamento' },
-  { value: 'awaiting_approval', label: 'Aguardando aprovação' },
+  { value: 'awaiting_approval', label: 'Pagamento confirmado' },
   { value: 'awaiting_contact', label: 'Aguardando contato' },
   { value: 'approved', label: 'Aprovados' },
   { value: 'cancelled', label: 'Cancelados' },
@@ -75,7 +75,7 @@ const getStatusBadgeClassName = (status: PlanOrderStatus) => {
 };
 
 const getAttemptProviderLabel = (provider: string) => {
-  if (provider === 'nupay') return 'Legado';
+  if (provider === 'nupay') return 'Outro';
   if (provider === 'stripe') return 'Stripe';
   return provider;
 };
@@ -173,22 +173,16 @@ const AdminPlanOrdersPage = () => {
   }, [user, queryClient]);
 
   const reviewMutation = useMutation({
-    mutationFn: async ({
-      orderId,
-      decision,
-    }: {
-      orderId: string;
-      decision: 'approve' | 'cancel';
-    }) => {
+    mutationFn: async ({ orderId }: { orderId: string }) => {
       const { error } = await supabase.rpc('review_plan_order', {
         p_order_id: orderId,
-        p_decision: decision,
+        p_decision: 'cancel',
         p_admin_notes: null,
       });
       if (error) throw error;
     },
-    onSuccess: (_data, variables) => {
-      toast.success(variables.decision === 'approve' ? 'Pedido aprovado e créditos liberados.' : 'Pedido cancelado.');
+    onSuccess: () => {
+      toast.success('Pedido cancelado.');
       queryClient.invalidateQueries({ queryKey: ['admin-plan-orders'] });
       queryClient.invalidateQueries({ queryKey: ['admin-plan-order-unread'] });
       queryClient.invalidateQueries({ queryKey: ['credit-summary'] });
@@ -201,8 +195,8 @@ const AdminPlanOrdersPage = () => {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleDecision = (orderId: string, decision: 'approve' | 'cancel') => {
-    reviewMutation.mutate({ orderId, decision });
+  const handleDecision = (orderId: string) => {
+    reviewMutation.mutate({ orderId });
   };
 
   const toggleStatusFilter = (status: PlanOrderStatus) => {
@@ -221,16 +215,8 @@ const AdminPlanOrdersPage = () => {
     setIsDetailsOpen(true);
   };
 
-  const selectedOrderCanApprove =
-    !!selectedOrder &&
-    selectedOrder.payment_provider !== 'stripe' &&
-    !selectedOrder.credited_selection_id &&
-    ((selectedOrder.plan_type === 'fixed' && selectedOrder.status === 'awaiting_approval') ||
-      (selectedOrder.plan_type === 'custom' &&
-        (selectedOrder.status === 'awaiting_contact' || selectedOrder.status === 'awaiting_approval')));
   const selectedOrderTerminal = selectedOrder?.status === 'approved' || selectedOrder?.status === 'cancelled';
-  const isReviewingSelectedOrder =
-    !!selectedOrder && reviewMutation.isPending && reviewMutation.variables?.orderId === selectedOrder.id;
+  const isReviewingSelectedOrder = !!selectedOrder && reviewMutation.isPending;
   const { data: selectedOrderAttempts = [], isLoading: loadingSelectedOrderAttempts } = useQuery<PaymentAttemptRow[]>({
     queryKey: ['admin-plan-order-payment-attempts', selectedOrder?.id],
     queryFn: async () => {
@@ -254,7 +240,7 @@ const AdminPlanOrdersPage = () => {
       <div className="rounded-xl border border-border bg-card p-4">
         <h1 className="font-display text-xl uppercase tracking-wider">Pedidos de compra</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Acompanhe o status financeiro e a auditoria dos pedidos. Pagamentos Stripe aprovados são creditados automaticamente.
+          Acompanhe o status financeiro e a auditoria dos pedidos. Pedidos pagos no Stripe são creditados automaticamente.
         </p>
       </div>
 
@@ -288,7 +274,7 @@ const AdminPlanOrdersPage = () => {
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-destructive/50 bg-card p-4 text-sm text-destructive">
-          Não foi possível carregar os pedidos.
+          NÃ£o foi possÃ­vel carregar os pedidos.
         </div>
       ) : paginatedOrders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
@@ -351,7 +337,7 @@ const AdminPlanOrdersPage = () => {
           onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
           disabled={currentPage >= totalPages - 1}
         >
-          Próxima
+          PrÃ³xima
         </Button>
       </div>
 
@@ -383,7 +369,7 @@ const AdminPlanOrdersPage = () => {
                   <p className="font-medium text-foreground">{getClassTypeLabel(selectedOrder.class_type)}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                  <p className="text-muted-foreground">Créditos</p>
+                  <p className="text-muted-foreground">CrÃ©ditos</p>
                   <p className="font-medium text-foreground">{selectedOrder.credits_amount}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
@@ -399,7 +385,7 @@ const AdminPlanOrdersPage = () => {
                   <p className="font-medium text-foreground">{getPaymentMethodLabel(selectedOrder.payment_method)}</p>
                 </div>
                 <div className="rounded-md border border-border/70 bg-background/60 p-2">
-                  <p className="text-muted-foreground">Crédito concedido em</p>
+                  <p className="text-muted-foreground">CrÃ©dito concedido em</p>
                   <p className="font-medium text-foreground">
                     {selectedOrder.credits_granted_at ? formatDateTimeBR(selectedOrder.credits_granted_at) : '-'}
                   </p>
@@ -412,7 +398,7 @@ const AdminPlanOrdersPage = () => {
                 )}
                 {selectedOrder.requires_refund_review && (
                   <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
-                    <p className="text-muted-foreground">Revisão de estorno</p>
+                    <p className="text-muted-foreground">RevisÃ£o de estorno</p>
                     <p className="font-medium text-amber-700">{selectedOrder.refund_review_reason || 'Pendente'}</p>
                   </div>
                 )}
@@ -437,13 +423,13 @@ const AdminPlanOrdersPage = () => {
                 {loadingSelectedOrderAttempts ? (
                   <p className="mt-2 text-xs text-muted-foreground">Carregando tentativas...</p>
                 ) : selectedOrderAttempts.length === 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Nenhuma tentativa registrada até o momento.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Nenhuma tentativa registrada atÃ© o momento.</p>
                 ) : (
                   <div className="mt-2 space-y-2">
                     {selectedOrderAttempts.map((attempt) => (
                       <div key={attempt.id} className="rounded-md border border-border/60 bg-background/70 p-2">
                         <p className="text-xs font-medium text-foreground">
-                          {getAttemptProviderLabel(attempt.provider)} •{' '}
+                          {getAttemptProviderLabel(attempt.provider)} â€¢{' '}
                           {attempt.event_name === 'checkout_opened'
                             ? 'Checkout aberto'
                             : attempt.event_name === 'checkout_redirected'
@@ -468,33 +454,17 @@ const AdminPlanOrdersPage = () => {
 
               {!selectedOrderTerminal && (
                 <div className="space-y-2">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      onClick={() => handleDecision(selectedOrder.id, 'approve')}
-                      disabled={isReviewingSelectedOrder || !selectedOrderCanApprove}
-                      className="w-full bg-green-600 font-display uppercase tracking-wider text-white hover:bg-green-700 sm:w-auto"
-                    >
-                      {isReviewingSelectedOrder && reviewMutation.variables?.decision === 'approve'
-                        ? 'Aprovando...'
-                        : 'Aprovar e creditar'}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleDecision(selectedOrder.id, 'cancel')}
-                      disabled={isReviewingSelectedOrder}
-                      className="w-full font-display uppercase tracking-wider sm:w-auto"
-                    >
-                      {isReviewingSelectedOrder && reviewMutation.variables?.decision === 'cancel'
-                        ? 'Cancelando...'
-                        : 'Cancelar pedido'}
-                    </Button>
-                  </div>
-                  {!selectedOrderCanApprove && (
-                    <p className="text-xs text-muted-foreground">
-                      Pedidos Stripe são creditados automaticamente após confirmação do webhook. Aprovação manual permanece
-                      apenas para fluxos legados.
-                    </p>
-                  )}
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDecision(selectedOrder.id)}
+                    disabled={isReviewingSelectedOrder}
+                    className="w-full font-display uppercase tracking-wider sm:w-auto"
+                  >
+                    {isReviewingSelectedOrder ? 'Cancelando...' : 'Cancelar pedido'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    CrÃ©ditos sÃ£o liberados automaticamente pelo webhook da Stripe apÃ³s pagamento confirmado.
+                  </p>
                 </div>
               )}
             </div>
@@ -506,3 +476,6 @@ const AdminPlanOrdersPage = () => {
 };
 
 export default AdminPlanOrdersPage;
+
+
+

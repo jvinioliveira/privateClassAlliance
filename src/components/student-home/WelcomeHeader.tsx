@@ -1,4 +1,4 @@
-import { motion, type Variants } from 'framer-motion';
+﻿import { motion, type Variants } from 'framer-motion';
 
 const headerVariants: Variants = {
   hidden: { opacity: 0, y: 14 },
@@ -10,15 +10,17 @@ const headerVariants: Variants = {
 };
 
 interface WelcomeHeaderProps {
-  studentName: string;
+  greeting: string;
+  highlightName?: string | null;
   subtitle: string;
 }
 
-const WelcomeHeader = ({ studentName, subtitle }: WelcomeHeaderProps) => {
+const WelcomeHeader = ({ greeting, highlightName, subtitle }: WelcomeHeaderProps) => {
   return (
     <motion.header variants={headerVariants} className="space-y-1.5 px-0.5">
       <h1 className="text-2xl tracking-tight text-foreground sm:text-[2rem]">
-        Olá, <span className="text-gold-gradient">{studentName}</span>
+        {greeting}
+        {highlightName ? <> <span className="text-gold-gradient">{highlightName}</span></> : null}
       </h1>
       <p className="max-w-xl text-sm text-muted-foreground sm:text-base">{subtitle}</p>
     </motion.header>
@@ -26,3 +28,4 @@ const WelcomeHeader = ({ studentName, subtitle }: WelcomeHeaderProps) => {
 };
 
 export default WelcomeHeader;
+

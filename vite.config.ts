@@ -16,13 +16,11 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: "auto",
       includeAssets: ["apple-touch-icon.png"],
       workbox: {
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
       },
       manifest: {
         name: "Aulas Particulares Alliance",

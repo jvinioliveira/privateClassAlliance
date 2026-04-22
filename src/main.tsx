@@ -1,4 +1,4 @@
-import { createRoot } from "react-dom/client";
+﻿import { createRoot } from "react-dom/client";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -39,16 +39,13 @@ const reloadOnceForChunkError = () => {
 };
 
 if (missingEnvVars.length > 0) {
+  console.error("Missing required env vars:", missingEnvVars.join(", "));
   root.render(
     <main className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
       <section className="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 className="mb-2 text-lg font-semibold">Configuração de produção incompleta</h1>
+        <h1 className="mb-2 text-lg font-semibold">Serviço temporariamente indisponível</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          O app não pode iniciar porque faltam variáveis no ambiente de deploy.
-        </p>
-        <p className="mt-4 text-sm">
-          Defina em seu provedor (ex.: Vercel):{" "}
-          <strong>{missingEnvVars.join(", ")}</strong>
+          Estamos realizando ajustes de configuração. Tente novamente em instantes.
         </p>
       </section>
     </main>,
@@ -90,3 +87,4 @@ if (missingEnvVars.length > 0) {
       );
     });
 }
+

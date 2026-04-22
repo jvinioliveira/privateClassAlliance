@@ -242,11 +242,6 @@
   animation: planEquivalentPulse 2.3s ease-in-out infinite;
 }
 
-.nubank-brand-font {
-  font-family: 'Nu Sans', 'Nunito Sans', 'Inter', sans-serif;
-  font-weight: 700;
-}
-
 @keyframes paymentStepPulse {
   0%,
   100% {

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 import { Bell, Calendar, House, UserCircle, WalletCards } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -41,26 +41,31 @@ const StudentLayout = () => {
     refetchInterval: 120000,
   });
 
-  const studentNavItems = [
-    { to: '/dashboard', icon: House, label: 'Início' },
-    { to: '/calendar', icon: Calendar, label: 'Agenda' },
-    { to: '/plans', icon: WalletCards, label: 'Planos' },
-    { to: '/notifications', icon: Bell, label: 'Notificações', badgeCount: unreadCount },
-    {
-      to: '/profile',
-      icon: UserCircle,
-      label: 'Perfil',
-      avatarUrl: profile?.avatar_url ?? null,
-      iconClassName: 'h-5 w-5',
-    },
-  ];
+  const studentNavItems = user
+    ? [
+        { to: '/dashboard', icon: House, label: 'Início' },
+        { to: '/calendar', icon: Calendar, label: 'Agenda' },
+        { to: '/plans', icon: WalletCards, label: 'Planos' },
+        { to: '/notifications', icon: Bell, label: 'Notificações', badgeCount: unreadCount },
+        {
+          to: '/profile',
+          icon: UserCircle,
+          label: 'Perfil',
+          avatarUrl: profile?.avatar_url ?? null,
+          iconClassName: 'h-5 w-5',
+        },
+      ]
+    : [
+        { to: '/dashboard', icon: House, label: 'Início' },
+        { to: '/plans', icon: WalletCards, label: 'Planos' },
+      ];
 
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col bg-background pb-20">
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-lg">
         <Logo size="sm" />
         <span className="text-xs font-medium text-muted-foreground">
-          {profile?.first_name || profile?.full_name || 'Aluno'}
+          {user ? profile?.first_name || profile?.full_name || 'Aluno' : 'Visitante'}
         </span>
       </header>
 

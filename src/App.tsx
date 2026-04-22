@@ -139,27 +139,105 @@ const App = () => (
                 <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
 
                 {/* Student */}
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <StudentLayout />
-                    </ProtectedRoute>
-                  }
-                >
+                <Route element={<StudentLayout />}>
                   <Route path="/dashboard" element={<StudentHomePage />} />
-                  <Route path="/calendar" element={<CalendarPage />} />
-                  <Route path="/my-bookings" element={<MyBookingsPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
-                  <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/plans" element={<PlansPage />} />
-                  <Route path="/plans/orders" element={<PlanOrdersPage />} />
-                  <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
-                  <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />
-                  <Route path="/plans/checkout/pending" element={<PlanCheckoutStatusPage />} />
-                  <Route path="/plans/checkout/error" element={<PlanCheckoutStatusPage />} />
-                  <Route path="/plans/checkout/:orderId" element={<PlanCheckoutPage />} />
-                  <Route path="/plans/custom/:orderId" element={<PlanCustomContactPage />} />
+                  <Route
+                    path="/calendar"
+                    element={
+                      <ProtectedRoute>
+                        <CalendarPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/my-bookings"
+                    element={
+                      <ProtectedRoute>
+                        <MyBookingsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/notifications"
+                    element={
+                      <ProtectedRoute>
+                        <NotificationsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/notifications/history"
+                    element={
+                      <ProtectedRoute>
+                        <NotificationsHistoryPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <ProfilePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/orders"
+                    element={
+                      <ProtectedRoute>
+                        <PlanOrdersPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/checkout/success"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCheckoutStatusPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/checkout/cancel"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCheckoutStatusPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/checkout/pending"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCheckoutStatusPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/checkout/error"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCheckoutStatusPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/checkout/:orderId"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCheckoutPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plans/custom/:orderId"
+                    element={
+                      <ProtectedRoute>
+                        <PlanCustomContactPage />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Route>
 
                 {/* Admin */}

@@ -195,6 +195,7 @@ const StudentHomePage = () => {
   const usedCredits = creditSummaryQuery.data?.usedCredits ?? 0;
   const remainingCredits = creditSummaryQuery.data?.remainingCredits ?? 0;
   const studentName = getDisplayName(profile?.first_name ?? null, profile?.full_name ?? null);
+  const isGuest = !user;
 
   const upcomingBookings = useMemo(() => {
     return bookings
@@ -279,15 +280,59 @@ const StudentHomePage = () => {
     };
   }, [bookings, monthRef, monthlyLimit]);
 
-  const subtitle = nextClass
+  const subtitle = isGuest
+    ? 'Conheça a experiência, os planos e faça login apenas quando quiser agendar ou comprar.'
+    : nextClass
     ? 'Veja sua próxima aula e agende com facilidade.'
     : remainingCredits > 0
     ? 'Acompanhe suas aulas e organize seu mês.'
     : 'Seu treino começa com uma boa organização.';
 
-  const handleGoCalendar = () => navigate('/calendar');
-  const handleSchedule = () => navigate('/calendar');
-  const handleReminderAction = () => navigate(remainingCredits > 0 ? '/calendar' : '/plans');
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }, []);
+
+  const promptLoginForPrivateAction = () => {
+    toast.info('Para continuar, faça login.', {
+      action: {
+        label: 'Fazer login',
+        onClick: () =>
+          navigate('/login', {
+            state: {
+              reason: 'auth_required',
+              redirectTo: '/dashboard',
+            },
+          }),
+      },
+    });
+  };
+
+  const handleGoCalendar = () => {
+    if (!user) {
+      promptLoginForPrivateAction();
+      return;
+    }
+    navigate('/calendar');
+  };
+
+  const handleSchedule = () => {
+    if (!user) {
+      promptLoginForPrivateAction();
+      return;
+    }
+    navigate('/calendar');
+  };
+
+  const handleReminderAction = () => {
+    if (!user) {
+      navigate('/plans');
+      return;
+    }
+    navigate(remainingCredits > 0 ? '/calendar' : '/plans');
+  };
 
   const handleReschedule = (bookingId: string) => {
     navigate('/calendar', { state: { rescheduleBookingId: bookingId } });
@@ -302,7 +347,11 @@ const StudentHomePage = () => {
         variants={pageVariants}
         className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-5"
       >
-        <WelcomeHeader studentName={studentName} subtitle={subtitle} />
+        <WelcomeHeader
+          greeting={greeting}
+          highlightName={isGuest ? null : studentName}
+          subtitle={subtitle}
+        />
 
         <motion.div variants={sectionVariants}>
           <NextClassCard
