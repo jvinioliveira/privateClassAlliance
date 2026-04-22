@@ -100,7 +100,7 @@ const HomeRedirect = () => {
   const { user, profile, loading } = useAuth();
 
   if (loading) return <AppSuspenseFallback />;
-  if (!user) return <Navigate to="/plans" replace />;
+  if (!user) return <Navigate to="/dashboard" replace />;
 
   if (profile?.role === "admin") {
     const savedAdminRoute = getRecentLastRoute(ADMIN_LAST_ROUTE_KEY, LAST_ROUTE_MAX_AGE_MS);
@@ -115,7 +115,7 @@ const LegacyStudentHomeRedirect = () => {
   const { user, profile, loading } = useAuth();
 
   if (loading) return <AppSuspenseFallback />;
-  if (!user) return <Navigate to="/plans" replace />;
+  if (!user) return <Navigate to="/dashboard" replace />;
   if (profile?.role === "admin") return <Navigate to="/admin" replace />;
   return <Navigate to="/dashboard" replace />;
 };
@@ -137,7 +137,6 @@ const App = () => (
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/auth/popup-callback" element={<AuthPopupCallbackPage />} />
-                <Route path="/plans" element={<PlansPage />} />
 
                 {/* Student */}
                 <Route
@@ -153,6 +152,7 @@ const App = () => (
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/notifications/history" element={<NotificationsHistoryPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/plans" element={<PlansPage />} />
                   <Route path="/plans/orders" element={<PlanOrdersPage />} />
                   <Route path="/plans/checkout/success" element={<PlanCheckoutStatusPage />} />
                   <Route path="/plans/checkout/cancel" element={<PlanCheckoutStatusPage />} />
